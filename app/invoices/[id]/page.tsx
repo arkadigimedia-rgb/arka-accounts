@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState, use } from "react";
 import Link from "next/link";
-import { ArkaShell } from "@/components/arka-shell";
+import { ArkaShell, useAuth } from "@/components/arka-shell";
 import {
   ArrowLeft,
   Building2,
@@ -81,6 +81,7 @@ const rupees = (amount: number) =>
   }).format(amount);
 
 export default function InvoiceDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const { isHr } = useAuth();
   const resolvedParams = use(params);
   const invoiceId = resolvedParams.id;
 
@@ -234,7 +235,7 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
               <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 text-xs space-y-2">
                 <div className="flex justify-between">
                   <span className="text-slate-500">Invoice Amount:</span>
-                  <span className="font-bold text-slate-900">{rupees(invoice.totalAmount)}</span>
+                  <span className="font-bold text-slate-900">{isHr ? "Confidential (Founder Only)" : rupees(invoice.totalAmount)}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-slate-500">Payment Status:</span>
@@ -280,10 +281,10 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
                   </td>
                   <td className="px-6 py-4 text-center text-xs text-slate-600">1</td>
                   <td className="px-6 py-4 text-right text-xs font-mono text-slate-700">
-                    {rupees(invoice.subtotal || invoice.totalAmount)}
+                    {isHr ? "—" : rupees(invoice.subtotal || invoice.totalAmount)}
                   </td>
                   <td className="px-6 py-4 text-right font-bold text-slate-900">
-                    {rupees(invoice.subtotal || invoice.totalAmount)}
+                    {isHr ? "Confidential" : rupees(invoice.subtotal || invoice.totalAmount)}
                   </td>
                 </tr>
               </tbody>
@@ -302,15 +303,15 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
             <div className="w-full sm:w-72 space-y-2 text-sm">
               <div className="flex justify-between text-slate-600 text-xs">
                 <span>Subtotal:</span>
-                <span className="font-mono">{rupees(invoice.subtotal || invoice.totalAmount)}</span>
+                <span className="font-mono">{isHr ? "—" : rupees(invoice.subtotal || invoice.totalAmount)}</span>
               </div>
               <div className="flex justify-between text-slate-600 text-xs">
                 <span>GST (18% included/applicable):</span>
-                <span className="font-mono">{rupees(invoice.taxAmount || 0)}</span>
+                <span className="font-mono">{isHr ? "—" : rupees(invoice.taxAmount || 0)}</span>
               </div>
               <div className="flex justify-between border-t border-slate-200 pt-2 text-base font-black text-slate-900">
                 <span>Total Due:</span>
-                <span>{rupees(invoice.totalAmount)}</span>
+                <span>{isHr ? "Confidential (Founder Only)" : rupees(invoice.totalAmount)}</span>
               </div>
             </div>
           </div>
@@ -319,23 +320,32 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
           <div className="pt-6 border-t border-slate-100">
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-bold text-slate-900 text-sm">Invoice PDF Document Preview</h3>
-              <a
-                href={`/api/invoices/${invoice.id}/pdf`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-xs font-semibold text-amber-600 hover:underline flex items-center gap-1"
-              >
-                <span>Open PDF in new tab</span>
-                <ExternalLink className="h-3 w-3" />
-              </a>
+              {!isHr && (
+                <a
+                  href={`/api/invoices/${invoice.id}/pdf`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-xs font-semibold text-amber-600 hover:underline flex items-center gap-1"
+                >
+                  <span>Open PDF in new tab</span>
+                  <ExternalLink className="h-3 w-3" />
+                </a>
+              )}
             </div>
-            <div className="rounded-2xl border border-slate-200 bg-slate-100 overflow-hidden h-[600px]">
-              <iframe
-                src={`/api/invoices/${invoice.id}/pdf`}
-                className="w-full h-full"
-                title={`PDF ${invoice.invoiceNumber}`}
-              />
-            </div>
+            {isHr ? (
+              <div className="p-6 rounded-2xl bg-purple-50 border border-purple-200 text-purple-900 text-xs font-semibold flex items-center gap-2">
+                <ShieldCheck className="h-5 w-5 text-purple-600 shrink-0" />
+                <span>Invoice PDF document details containing billed contract value are restricted to Founder authorization.</span>
+              </div>
+            ) : (
+              <div className="rounded-2xl border border-slate-200 bg-slate-100 overflow-hidden h-[600px]">
+                <iframe
+                  src={`/api/invoices/${invoice.id}/pdf`}
+                  className="w-full h-full"
+                  title={`PDF ${invoice.invoiceNumber}`}
+                />
+              </div>
+            )}
           </div>
         </div>
       </div>

@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState, use } from "react";
 import Link from "next/link";
-import { ArkaShell } from "@/components/arka-shell";
+import { ArkaShell, useAuth } from "@/components/arka-shell";
 import {
   AlertCircle,
   ArrowLeft,
@@ -110,6 +110,7 @@ const rupees = (amount: number) =>
   }).format(amount);
 
 export default function ClientDetailsPage({ params }: { params: Promise<{ id: string }> }) {
+  const { isHr } = useAuth();
   const resolvedParams = use(params);
   const clientId = resolvedParams.id;
 
@@ -378,32 +379,56 @@ export default function ClientDetailsPage({ params }: { params: Promise<{ id: st
         </div>
 
         {/* 360 Financial KPI Strip */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-sm">
-            <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Total Invoiced</p>
-            <p className="mt-2 text-2xl font-black text-slate-900">{rupees(metrics?.totalInvoiced ?? 0)}</p>
-            <p className="text-[11px] text-slate-400 mt-1">{invoices.length} invoices generated</p>
+        {isHr ? (
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-sm">
+              <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Collected Revenue</p>
+              <p className="mt-2 text-2xl font-black text-emerald-600">{rupees(metrics?.totalPaid ?? 0)}</p>
+              <p className="text-[11px] text-emerald-700/70 mt-1">
+                {payments.filter((p) => p.status === "PAID").length} settled payments
+              </p>
+            </div>
+            <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-sm">
+              <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Outstanding Balance</p>
+              <p className="mt-2 text-2xl font-black text-amber-600">{rupees(metrics?.outstanding ?? 0)}</p>
+              <p className="text-[11px] text-slate-400 mt-1">Pending collection</p>
+            </div>
+            <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-sm">
+              <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Overdue Balance</p>
+              <p className="mt-2 text-2xl font-black text-rose-600">{rupees(metrics?.overdue ?? 0)}</p>
+              <p className="text-[11px] text-rose-600/70 mt-1">
+                {payments.filter((p) => p.status === "OVERDUE").length} overdue payments
+              </p>
+            </div>
           </div>
-          <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-sm">
-            <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Collected Revenue</p>
-            <p className="mt-2 text-2xl font-black text-emerald-600">{rupees(metrics?.totalPaid ?? 0)}</p>
-            <p className="text-[11px] text-emerald-700/70 mt-1">
-              {payments.filter((p) => p.status === "PAID").length} settled payments
-            </p>
+        ) : (
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-sm">
+              <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Total Invoiced</p>
+              <p className="mt-2 text-2xl font-black text-slate-900">{rupees(metrics?.totalInvoiced ?? 0)}</p>
+              <p className="text-[11px] text-slate-400 mt-1">{invoices.length} invoices generated</p>
+            </div>
+            <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-sm">
+              <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Collected Revenue</p>
+              <p className="mt-2 text-2xl font-black text-emerald-600">{rupees(metrics?.totalPaid ?? 0)}</p>
+              <p className="text-[11px] text-emerald-700/70 mt-1">
+                {payments.filter((p) => p.status === "PAID").length} settled payments
+              </p>
+            </div>
+            <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-sm">
+              <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Outstanding Balance</p>
+              <p className="mt-2 text-2xl font-black text-amber-600">{rupees(metrics?.outstanding ?? 0)}</p>
+              <p className="text-[11px] text-slate-400 mt-1">Pending collection</p>
+            </div>
+            <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-sm">
+              <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Overdue Balance</p>
+              <p className="mt-2 text-2xl font-black text-rose-600">{rupees(metrics?.overdue ?? 0)}</p>
+              <p className="text-[11px] text-rose-600/70 mt-1">
+                {payments.filter((p) => p.status === "OVERDUE").length} overdue payments
+              </p>
+            </div>
           </div>
-          <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-sm">
-            <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Outstanding Balance</p>
-            <p className="mt-2 text-2xl font-black text-amber-600">{rupees(metrics?.outstanding ?? 0)}</p>
-            <p className="text-[11px] text-slate-400 mt-1">Pending collection</p>
-          </div>
-          <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-sm">
-            <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Overdue Balance</p>
-            <p className="mt-2 text-2xl font-black text-rose-600">{rupees(metrics?.overdue ?? 0)}</p>
-            <p className="text-[11px] text-rose-600/70 mt-1">
-              {payments.filter((p) => p.status === "OVERDUE").length} overdue payments
-            </p>
-          </div>
-        </div>
+        )}
 
         {/* Operational Tabs */}
         <div className="border-b border-slate-200">
@@ -483,7 +508,7 @@ export default function ClientDetailsPage({ params }: { params: Promise<{ id: st
                       <th className="px-6 py-3">Invoice Number</th>
                       <th className="px-6 py-3">Issue Date</th>
                       <th className="px-6 py-3">Due Date</th>
-                      <th className="px-6 py-3">Amount</th>
+                      {!isHr && <th className="px-6 py-3">Amount</th>}
                       <th className="px-6 py-3">Status</th>
                       <th className="px-6 py-3 text-right">PDF</th>
                     </tr>
@@ -498,7 +523,9 @@ export default function ClientDetailsPage({ params }: { params: Promise<{ id: st
                         </td>
                         <td className="px-6 py-3.5 text-xs text-slate-600">{inv.issueDate}</td>
                         <td className="px-6 py-3.5 text-xs text-slate-600">{inv.dueDate}</td>
-                        <td className="px-6 py-3.5 font-bold text-slate-900">{rupees(inv.totalAmount)}</td>
+                        {!isHr && (
+                          <td className="px-6 py-3.5 font-bold text-slate-900">{rupees(inv.totalAmount)}</td>
+                        )}
                         <td className="px-6 py-3.5">
                           <span
                             className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${

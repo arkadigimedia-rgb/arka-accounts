@@ -2,7 +2,7 @@
 
 import React, { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { ArkaShell } from "@/components/arka-shell";
+import { ArkaShell, useAuth } from "@/components/arka-shell";
 import {
   AlertCircle,
   Building2,
@@ -49,6 +49,7 @@ const formatStatus = (val: string) =>
     .join(" ");
 
 export default function PaymentsPage() {
+  const { isHr } = useAuth();
   const [payments, setPayments] = useState<PaymentItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -168,9 +169,15 @@ export default function PaymentsPage() {
         {/* KPI Strip */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-sm">
-            <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Total Receivables</p>
-            <p className="mt-2 text-2xl lg:text-3xl font-black text-slate-900">{rupees(kpis.totalExpected)}</p>
-            <p className="text-[11px] text-slate-400 mt-1">{payments.length} scheduled payments</p>
+            <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+              {isHr ? "Pending Collection" : "Total Receivables"}
+            </p>
+            <p className={`mt-2 text-2xl lg:text-3xl font-black ${isHr ? "text-amber-600" : "text-slate-900"}`}>
+              {rupees(isHr ? Math.max(0, kpis.totalExpected - kpis.totalCollected) : kpis.totalExpected)}
+            </p>
+            <p className="text-[11px] text-slate-400 mt-1">
+              {isHr ? "Pending client dues" : `${payments.length} scheduled payments`}
+            </p>
           </div>
           <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-sm">
             <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Collected & Settled</p>

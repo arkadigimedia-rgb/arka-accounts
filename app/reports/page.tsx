@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
-import { ArkaShell } from "@/components/arka-shell";
+import { ArkaShell, useAuth } from "@/components/arka-shell";
 import {
   AlertTriangle,
   ArrowDownRight,
@@ -21,7 +21,7 @@ import {
 
 interface ReportData {
   summary: {
-    totalInvoiced: number;
+    totalInvoiced: number | null;
     invoiceCount: number;
     totalCollected: number;
     totalOutstanding: number;
@@ -52,6 +52,7 @@ interface ReportData {
     status: string;
   }>;
   generatedAt: string;
+  role?: string;
 }
 
 const rupees = (amount: number) =>
@@ -62,6 +63,7 @@ const rupees = (amount: number) =>
   }).format(amount);
 
 export default function ReportsPage() {
+  const { isHr } = useAuth();
   const [data, setData] = useState<ReportData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -173,41 +175,65 @@ export default function ReportsPage() {
             )}
 
             {/* Top Financial KPI Strip */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-              <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-sm">
-                <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Total Billed</p>
-                <p className="mt-2 text-3xl font-black text-slate-900">{rupees(data.summary.totalInvoiced)}</p>
-                <p className="text-[11px] text-slate-400 mt-1">{data.summary.invoiceCount} invoices generated</p>
-              </div>
+            {isHr || data.summary.totalInvoiced === null ? (
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-sm">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Total Collected</p>
+                  <p className="mt-2 text-3xl font-black text-emerald-600">{rupees(data.summary.totalCollected)}</p>
+                  <p className="text-[11px] text-emerald-700/70 mt-1">{data.summary.paidCount} payments settled</p>
+                </div>
 
-              <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-sm">
-                <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Total Collected</p>
-                <p className="mt-2 text-3xl font-black text-emerald-600">{rupees(data.summary.totalCollected)}</p>
-                <p className="text-[11px] text-emerald-700/70 mt-1">{data.summary.paidCount} payments settled</p>
-              </div>
+                <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-sm">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Total Outstanding</p>
+                  <p className="mt-2 text-3xl font-black text-amber-600">{rupees(data.summary.totalOutstanding)}</p>
+                  <p className="text-[11px] text-slate-400 mt-1">
+                    {data.summary.dueTodayCount + data.summary.overdueCount} active accounts pending
+                  </p>
+                </div>
 
-              <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-sm">
-                <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Total Outstanding</p>
-                <p className="mt-2 text-3xl font-black text-amber-600">{rupees(data.summary.totalOutstanding)}</p>
-                <p className="text-[11px] text-slate-400 mt-1">
-                  Collection Rate:{" "}
-                  {data.summary.totalInvoiced > 0
-                    ? Math.round(
-                        (data.summary.totalCollected /
-                          (data.summary.totalCollected + data.summary.totalOutstanding)) *
-                          100
-                      )
-                    : 100}
-                  %
-                </p>
+                <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-sm">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Delinquent / Overdue</p>
+                  <p className="mt-2 text-3xl font-black text-rose-600">{rupees(data.summary.totalOverdue)}</p>
+                  <p className="text-[11px] text-rose-600/70 mt-1">{data.summary.overdueCount} accounts past due</p>
+                </div>
               </div>
+            ) : (
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-sm">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Total Billed</p>
+                  <p className="mt-2 text-3xl font-black text-slate-900">{rupees(data.summary.totalInvoiced ?? 0)}</p>
+                  <p className="text-[11px] text-slate-400 mt-1">{data.summary.invoiceCount} invoices generated</p>
+                </div>
 
-              <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-sm">
-                <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Delinquent / Overdue</p>
-                <p className="mt-2 text-3xl font-black text-rose-600">{rupees(data.summary.totalOverdue)}</p>
-                <p className="text-[11px] text-rose-600/70 mt-1">{data.summary.overdueCount} accounts past due</p>
+                <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-sm">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Total Collected</p>
+                  <p className="mt-2 text-3xl font-black text-emerald-600">{rupees(data.summary.totalCollected)}</p>
+                  <p className="text-[11px] text-emerald-700/70 mt-1">{data.summary.paidCount} payments settled</p>
+                </div>
+
+                <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-sm">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Total Outstanding</p>
+                  <p className="mt-2 text-3xl font-black text-amber-600">{rupees(data.summary.totalOutstanding)}</p>
+                  <p className="text-[11px] text-slate-400 mt-1">
+                    Collection Rate:{" "}
+                    {(data.summary.totalInvoiced ?? 0) > 0
+                      ? Math.round(
+                          (data.summary.totalCollected /
+                            (data.summary.totalCollected + data.summary.totalOutstanding)) *
+                            100
+                        )
+                      : 100}
+                    %
+                  </p>
+                </div>
+
+                <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-sm">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Delinquent / Overdue</p>
+                  <p className="mt-2 text-3xl font-black text-rose-600">{rupees(data.summary.totalOverdue)}</p>
+                  <p className="text-[11px] text-rose-600/70 mt-1">{data.summary.overdueCount} accounts past due</p>
+                </div>
               </div>
-            </div>
+            )}
 
             {/* Receivables Aging Bracket Strip */}
             <div className="rounded-3xl border border-slate-200 bg-white p-6 lg:p-8 shadow-sm space-y-6">

@@ -2,14 +2,14 @@ import { NextResponse } from "next/server";
 import { desc, eq, sql } from "drizzle-orm";
 import { getDb } from "@/db";
 import { clients, invoices, payments } from "@/db/schema";
-import { requireRole } from "@/lib/auth";
+import { currentUser, requireRole } from "@/lib/auth";
 import { databaseNotConfiguredResponse, isDatabaseNotConfigured } from "@/lib/database-config";
 import { operationalStore } from "@/lib/operational-store";
 
 const kolkataToday = () =>
   new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata" }).format(new Date());
 
-function computeStoreReport(today: string) {
+function computeStoreReport(today: string, isHr = false) {
   const allPayments = operationalStore.getPayments();
   const allInvoices = operationalStore.getInvoices();
 
@@ -72,7 +72,7 @@ function computeStoreReport(today: string) {
 
   return {
     summary: {
-      totalInvoiced: allInvoices.reduce((s, i) => s + i.totalAmount, 0),
+      totalInvoiced: isHr ? null : allInvoices.reduce((s, i) => s + i.totalAmount, 0),
       invoiceCount: allInvoices.length,
       totalCollected,
       totalOutstanding,
@@ -99,9 +99,11 @@ export async function GET() {
   }
 
   const today = kolkataToday();
+  const user = await currentUser();
+  const isHr = user?.role === "HR";
 
   if (!process.env.DATABASE_URL) {
-    return NextResponse.json(computeStoreReport(today));
+    return NextResponse.json(computeStoreReport(today, isHr));
   }
 
   try {
@@ -195,7 +197,7 @@ export async function GET() {
 
     return NextResponse.json({
       summary: {
-        totalInvoiced: Number(invSum?.total ?? 0),
+        totalInvoiced: isHr ? null : Number(invSum?.total ?? 0),
         invoiceCount: Number(invSum?.count ?? 0),
         totalCollected,
         totalOutstanding,
@@ -209,8 +211,9 @@ export async function GET() {
       clientOutstanding,
       recentPayments: paymentRows.slice(0, 15),
       generatedAt: new Date().toISOString(),
+      role: isHr ? "HR" : "FOUNDER",
     });
   } catch (error) {
-    return NextResponse.json(computeStoreReport(today));
+    return NextResponse.json(computeStoreReport(today, isHr));
   }
 }

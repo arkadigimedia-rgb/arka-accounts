@@ -2,7 +2,7 @@
 
 import React, { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { ArkaShell } from "@/components/arka-shell";
+import { ArkaShell, useAuth } from "@/components/arka-shell";
 import {
   AlertCircle,
   Building2,
@@ -51,6 +51,7 @@ const rupees = (amount: number) =>
   }).format(amount);
 
 export default function InvoicesPage() {
+  const { isHr } = useAuth();
   const [invoices, setInvoices] = useState<InvoiceItem[]>([]);
   const [schedules, setSchedules] = useState<BillingScheduleOption[]>([]);
   const [loading, setLoading] = useState(true);
@@ -239,34 +240,60 @@ export default function InvoicesPage() {
         )}
 
         {/* Financial KPI Strip */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-sm">
-            <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Total Billed</p>
-            <p className="mt-2 text-2xl lg:text-3xl font-black text-slate-900">{rupees(kpis.totalAmount)}</p>
-            <p className="text-[11px] text-slate-400 mt-1">{invoices.length} invoices in ledger</p>
+        {isHr ? (
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-sm">
+              <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Collected</p>
+              <p className="mt-2 text-2xl lg:text-3xl font-black text-emerald-600">{rupees(kpis.paidAmount)}</p>
+              <p className="text-[11px] text-emerald-700/70 mt-1">
+                {invoices.filter((i) => i.status === "PAID").length} settled invoices
+              </p>
+            </div>
+            <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-sm">
+              <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Pending Due</p>
+              <p className="mt-2 text-2xl lg:text-3xl font-black text-amber-600">{rupees(kpis.pendingAmount)}</p>
+              <p className="text-[11px] text-slate-400 mt-1">
+                {invoices.filter((i) => ["DRAFT", "SENT"].includes(i.status)).length} active invoices
+              </p>
+            </div>
+            <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-sm">
+              <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Overdue</p>
+              <p className="mt-2 text-2xl lg:text-3xl font-black text-rose-600">{rupees(kpis.overdueAmount)}</p>
+              <p className="text-[11px] text-rose-600/70 mt-1">
+                {invoices.filter((i) => i.status === "OVERDUE").length} delinquent invoices
+              </p>
+            </div>
           </div>
-          <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-sm">
-            <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Collected</p>
-            <p className="mt-2 text-2xl lg:text-3xl font-black text-emerald-600">{rupees(kpis.paidAmount)}</p>
-            <p className="text-[11px] text-emerald-700/70 mt-1">
-              {invoices.filter((i) => i.status === "PAID").length} settled invoices
-            </p>
+        ) : (
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-sm">
+              <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Total Billed</p>
+              <p className="mt-2 text-2xl lg:text-3xl font-black text-slate-900">{rupees(kpis.totalAmount)}</p>
+              <p className="text-[11px] text-slate-400 mt-1">{invoices.length} invoices in ledger</p>
+            </div>
+            <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-sm">
+              <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Collected</p>
+              <p className="mt-2 text-2xl lg:text-3xl font-black text-emerald-600">{rupees(kpis.paidAmount)}</p>
+              <p className="text-[11px] text-emerald-700/70 mt-1">
+                {invoices.filter((i) => i.status === "PAID").length} settled invoices
+              </p>
+            </div>
+            <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-sm">
+              <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Pending Due</p>
+              <p className="mt-2 text-2xl lg:text-3xl font-black text-amber-600">{rupees(kpis.pendingAmount)}</p>
+              <p className="text-[11px] text-slate-400 mt-1">
+                {invoices.filter((i) => ["DRAFT", "SENT"].includes(i.status)).length} active invoices
+              </p>
+            </div>
+            <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-sm">
+              <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Overdue</p>
+              <p className="mt-2 text-2xl lg:text-3xl font-black text-rose-600">{rupees(kpis.overdueAmount)}</p>
+              <p className="text-[11px] text-rose-600/70 mt-1">
+                {invoices.filter((i) => i.status === "OVERDUE").length} delinquent invoices
+              </p>
+            </div>
           </div>
-          <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-sm">
-            <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Pending Due</p>
-            <p className="mt-2 text-2xl lg:text-3xl font-black text-amber-600">{rupees(kpis.pendingAmount)}</p>
-            <p className="text-[11px] text-slate-400 mt-1">
-              {invoices.filter((i) => ["DRAFT", "SENT"].includes(i.status)).length} active invoices
-            </p>
-          </div>
-          <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-sm">
-            <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Overdue</p>
-            <p className="mt-2 text-2xl lg:text-3xl font-black text-rose-600">{rupees(kpis.overdueAmount)}</p>
-            <p className="text-[11px] text-rose-600/70 mt-1">
-              {invoices.filter((i) => i.status === "OVERDUE").length} delinquent invoices
-            </p>
-          </div>
-        </div>
+        )}
 
         {/* Month Selector Pills */}
         <div className="flex items-center gap-2 overflow-x-auto pb-1">
@@ -410,7 +437,7 @@ export default function InvoicesPage() {
                     <th className="px-6 py-3.5">Client</th>
                     <th className="px-6 py-3.5">Issue Date</th>
                     <th className="px-6 py-3.5">Due Date</th>
-                    <th className="px-6 py-3.5">Total (₹)</th>
+                    {!isHr && <th className="px-6 py-3.5">Total (₹)</th>}
                     <th className="px-6 py-3.5">Status</th>
                     <th className="px-6 py-3.5 text-right">Actions</th>
                   </tr>
@@ -436,7 +463,9 @@ export default function InvoicesPage() {
                       </td>
                       <td className="px-6 py-4 text-xs font-mono text-slate-600">{inv.issueDate}</td>
                       <td className="px-6 py-4 text-xs font-mono text-slate-600">{inv.dueDate}</td>
-                      <td className="px-6 py-4 font-black text-slate-900">{rupees(inv.totalAmount)}</td>
+                      {!isHr && (
+                        <td className="px-6 py-4 font-black text-slate-900">{rupees(inv.totalAmount)}</td>
+                      )}
                       <td className="px-6 py-4">
                         <span
                           className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold ${

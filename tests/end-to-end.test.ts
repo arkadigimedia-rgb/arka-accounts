@@ -333,5 +333,44 @@ describe("ARKA Accounts End-to-End Operational Pipeline", () => {
       expect(hrView.amounts.paid).toBeDefined();
       expect(hrView.amounts.pending).toBeDefined();
     });
+
+    it("strictly enforces password 123456 for login and rejects any invalid password", async () => {
+      const { POST } = await import("@/app/api/auth/login/route");
+
+      // Wrong password attempt
+      const badReq = new Request("http://localhost/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ role: "FOUNDER", password: "wrongpassword999" }),
+      });
+      const badRes = await POST(badReq);
+      expect(badRes.status).toBe(401);
+      const badData = (await badRes.json()) as any;
+      expect(badData.error).toContain("123456");
+
+      // Correct password attempt for Founder
+      const founderReq = new Request("http://localhost/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ role: "FOUNDER", password: "123456" }),
+      });
+      const founderRes = await POST(founderReq);
+      expect(founderRes.status).toBe(200);
+      const founderData = (await founderRes.json()) as any;
+      expect(founderData.role).toBe("FOUNDER");
+      expect(founderData.email).toBe("founder@arkadigitalmedia.in");
+
+      // Correct password attempt for HR
+      const hrReq = new Request("http://localhost/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ role: "HR", password: "123456" }),
+      });
+      const hrRes = await POST(hrReq);
+      expect(hrRes.status).toBe(200);
+      const hrData = (await hrRes.json()) as any;
+      expect(hrData.role).toBe("HR");
+      expect(hrData.email).toBe("hr@arkadigitalmedia.in");
+    });
   });
 });

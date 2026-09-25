@@ -19,24 +19,36 @@ export default function LoginPage() {
   const router = useRouter();
   const [selectedRole, setSelectedRole] = useState<"FOUNDER" | "HR">("FOUNDER");
   const [email, setEmail] = useState("founder@arkadigitalmedia.in");
-  const [password, setPassword] = useState("founder123");
+  const [password, setPassword] = useState("123456");
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  React.useEffect(() => {
+    fetch("/api/auth/me")
+      .then((r) => r.json() as Promise<any>)
+      .then((data: any) => {
+        if (!data.error && data.id) {
+          router.push("/");
+        }
+      })
+      .catch(() => {});
+  }, [router]);
 
   const handleSelectRole = (role: "FOUNDER" | "HR") => {
     setSelectedRole(role);
     setErrorMessage(null);
     if (role === "FOUNDER") {
       setEmail("founder@arkadigitalmedia.in");
-      setPassword("founder123");
+      setPassword("123456");
     } else {
       setEmail("hr@arkadigitalmedia.in");
-      setPassword("hr123");
+      setPassword("123456");
     }
   };
 
   const handleLogin = async (overrideRole?: "FOUNDER" | "HR") => {
     const roleToLogin = overrideRole || selectedRole;
+    const pwdToSubmit = password || "123456";
     setLoading(true);
     setErrorMessage(null);
 
@@ -47,7 +59,7 @@ export default function LoginPage() {
         body: JSON.stringify({
           role: roleToLogin,
           email: overrideRole === "HR" ? "hr@arkadigitalmedia.in" : overrideRole === "FOUNDER" ? "founder@arkadigitalmedia.in" : email,
-          password: password,
+          password: pwdToSubmit,
         }),
       });
 
@@ -57,7 +69,7 @@ export default function LoginPage() {
         router.push("/");
         router.refresh();
       } else {
-        setErrorMessage(data.error || "Authentication failed.");
+        setErrorMessage(data.error || "Authentication failed. Password is 123456.");
       }
     } catch {
       setErrorMessage("Network error during login. Please retry.");
@@ -176,7 +188,12 @@ export default function LoginPage() {
             </div>
 
             <div className="space-y-1.5">
-              <label className="block text-xs font-semibold text-slate-300">Password</label>
+              <div className="flex items-center justify-between">
+                <label className="block text-xs font-semibold text-slate-300">Password</label>
+                <span className="text-[11px] font-mono text-amber-400 font-bold bg-amber-400/10 px-2 py-0.5 rounded-md border border-amber-400/20">
+                  Password: 123456
+                </span>
+              </div>
               <div className="relative">
                 <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
                 <input
@@ -184,7 +201,7 @@ export default function LoginPage() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-10 pr-4 py-2.5 text-xs text-white placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-amber-400/50 focus:border-amber-400 transition"
-                  placeholder="••••••••"
+                  placeholder="123456"
                   required
                 />
               </div>

@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
-import { ArkaShell } from "@/components/arka-shell";
+import { ArkaShell, useAuth } from "@/components/arka-shell";
 import {
   AlertTriangle,
   ArrowRight,
@@ -68,6 +68,7 @@ const formatINR = (n: number) =>
   new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(n);
 
 export default function ActionCenterPage() {
+  const { isHr: authIsHr } = useAuth();
   const [summary, setSummary] = useState<SummaryData | null>(null);
   const [actions, setActions] = useState<ActionItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -159,7 +160,7 @@ export default function ActionCenterPage() {
   const dueTodayItems = actions.filter((a) => a.type === "PAYMENT_DUE");
   const reminderItems = actions.filter((a) => a.type === "REMINDER_REQUIRED");
 
-  const isHr = summary?.role === "HR" || summary?.amounts?.expected === null;
+  const isHr = authIsHr || summary?.role === "HR" || summary?.amounts?.expected === null;
 
   return (
     <ArkaShell>

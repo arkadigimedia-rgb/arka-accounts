@@ -2,7 +2,7 @@
 
 import React, { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { ArkaShell } from "@/components/arka-shell";
+import { ArkaShell, useAuth } from "@/components/arka-shell";
 import {
   AlertCircle,
   Building2,
@@ -55,6 +55,7 @@ const rupees = (amount: number) =>
   }).format(amount);
 
 export default function BillingSchedulesPage() {
+  const { isHr } = useAuth();
   const [schedules, setSchedules] = useState<BillingSchedule[]>([]);
   const [clients, setClients] = useState<ClientOption[]>([]);
   const [loading, setLoading] = useState(true);
@@ -272,9 +273,11 @@ export default function BillingSchedulesPage() {
             </p>
           </div>
           <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-sm">
-            <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Monthly Run Rate</p>
+            <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+              {isHr ? "Active Billing Cadence" : "Monthly Run Rate"}
+            </p>
             <p className="mt-2 text-2xl lg:text-3xl font-black text-emerald-600">
-              {rupees(monthlyRunRate)}
+              {isHr ? `${schedules.filter((s) => s.status === "ACTIVE").length} Active` : rupees(monthlyRunRate)}
             </p>
           </div>
           <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-sm">
@@ -344,7 +347,7 @@ export default function BillingSchedulesPage() {
                   <tr>
                     <th className="px-6 py-3.5">Client & Service</th>
                     <th className="px-6 py-3.5">Billing Cadence</th>
-                    <th className="px-6 py-3.5">Amount</th>
+                    {!isHr && <th className="px-6 py-3.5">Amount</th>}
                     <th className="px-6 py-3.5">Next Invoice Date</th>
                     <th className="px-6 py-3.5">Next Due Date</th>
                     <th className="px-6 py-3.5">Automation</th>
@@ -373,9 +376,11 @@ export default function BillingSchedulesPage() {
                           Day {schedule.invoiceGenerationDay || 1} of month
                         </span>
                       </td>
-                      <td className="px-6 py-4 font-black text-slate-900 text-base">
-                        {rupees(schedule.expectedAmount)}
-                      </td>
+                      {!isHr && (
+                        <td className="px-6 py-4 font-black text-slate-900 text-base">
+                          {rupees(schedule.expectedAmount)}
+                        </td>
+                      )}
                       <td className="px-6 py-4 text-xs font-mono text-slate-700">
                         {schedule.nextInvoiceDate || "—"}
                       </td>

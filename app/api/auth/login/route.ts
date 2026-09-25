@@ -16,51 +16,36 @@ export async function POST(request: Request) {
     const email = body.email?.trim().toLowerCase() || "";
     const password = body.password?.trim() || "";
 
-    // 1. Quick Switch or direct role login
-    if (targetRole === "HR" || email.includes("hr")) {
-      const hrUser = {
-        id: 2,
-        name: "ARKA HR Operations",
-        email: "hr@arkadigitalmedia.in",
-        role: "HR",
-        active: true,
-      };
-      await createSession(hrUser);
-      return NextResponse.json(hrUser);
+    // Strictly enforce password 123456 as requested
+    if (password !== "123456") {
+      return NextResponse.json(
+        { error: "Invalid password. The access password is 123456." },
+        { status: 401 }
+      );
     }
 
-    if (targetRole === "FOUNDER" || email.includes("founder") || email.includes("admin")) {
-      const founderUser = {
-        id: 1,
-        name: "ARKA Founder (Admin)",
-        email: "founder@arkadigitalmedia.in",
-        role: "FOUNDER",
-        active: true,
-      };
-      await createSession(founderUser);
-      return NextResponse.json(founderUser);
-    }
+    const isHr = targetRole === "HR" || email.includes("hr");
 
-    // 2. Database verification if available and email provided
+    // Check DB user if DATABASE_URL is active
     if (process.env.DATABASE_URL && email) {
       try {
         const [dbUser] = await getDb().select().from(users).where(eq(users.email, email));
-        if (dbUser && dbUser.active && (!password || verifyPassword(password, dbUser.passwordHash))) {
-          await createSession(dbUser);
-          return NextResponse.json({
+        if (dbUser && dbUser.active) {
+          const userSession = {
             id: dbUser.id,
             name: dbUser.name,
             email: dbUser.email,
             role: dbUser.role,
-          });
+          };
+          await createSession(userSession);
+          return NextResponse.json(userSession);
         }
       } catch {
-        // Fall back to role-based resolution
+        // Fall back to preset roles below
       }
     }
 
-    // 3. Fallback based on email keywords or default to Founder
-    if (email === "hr@arkadigitalmedia.in" || email === "hr@arkafinance.com" || email === "hr") {
+    if (isHr) {
       const hrUser = {
         id: 2,
         name: "ARKA HR Operations",
@@ -72,6 +57,7 @@ export async function POST(request: Request) {
       return NextResponse.json(hrUser);
     }
 
+    // Default to Founder Portal
     const founderUser = {
       id: 1,
       name: "ARKA Founder (Admin)",
