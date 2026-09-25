@@ -58,6 +58,9 @@ function parseCsv(csvText: string): Record<string, string>[] {
   return rows;
 }
 
+export const DEFAULT_SHEET_ID = "1OiHRA_NaKEIbiwhsTBsrg2qxF6PA7MqWL0HRMJ1qLiU";
+export const DEFAULT_SHEET_URL = `https://docs.google.com/spreadsheets/d/${DEFAULT_SHEET_ID}/edit?usp=sharing`;
+
 export class GoogleSheetsProvider implements SheetProvider {
   private readonly customSheetIdOrUrl?: string;
 
@@ -67,7 +70,10 @@ export class GoogleSheetsProvider implements SheetProvider {
 
   private getSheetId(): string | null {
     return extractSheetId(
-      this.customSheetIdOrUrl || process.env.GOOGLE_SHEET_ID || process.env.GOOGLE_SHEET_URL
+      this.customSheetIdOrUrl ||
+      process.env.GOOGLE_SHEET_ID ||
+      process.env.GOOGLE_SHEET_URL ||
+      DEFAULT_SHEET_ID
     );
   }
 

@@ -15,6 +15,14 @@ import { databaseNotConfiguredResponse, isDatabaseNotConfigured } from "@/lib/da
 import { operationalStore } from "@/lib/operational-store";
 
 export async function GET(_: Request, { params }: { params: Promise<{ id: string }> }) {
+  if (operationalStore.getClients().length === 0) {
+    try {
+      await operationalStore.syncLiveGoogleSheet();
+    } catch (e) {
+      console.error("Auto-sync error on empty store:", e);
+    }
+  }
+
   try {
     await requireRole("FOUNDER", "ACCOUNTS_MANAGER", "ACCOUNT_MANAGER");
     const id = Number((await params).id);
@@ -61,7 +69,47 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
 
     const db = getDb();
     const [client] = await db.select().from(clients).where(eq(clients.id, id));
-    if (!client) return NextResponse.json({ error: "Client not found." }, { status: 404 });
+    if (!client) {
+      const data = operationalStore.getClientById(id);
+      if (data) {
+        return NextResponse.json({
+          client: data.client,
+          services: [
+            {
+              id,
+              name: data.client.service,
+              description: data.client.serviceDescription,
+              billingAmount: data.client.monthlyFee,
+              currency: "INR",
+              status: "ACTIVE",
+            },
+          ],
+          schedules: data.schedules,
+          billingSchedules: data.schedules,
+          invoices: data.invoices,
+          payments: data.payments,
+          followUps: data.followUps,
+          metrics: {
+            totalInvoiced: data.metrics.totalBilled,
+            totalPaid: data.metrics.totalCollected,
+            outstanding: data.metrics.outstanding,
+            overdue: data.payments
+              .filter((p) => p.status === "OVERDUE")
+              .reduce((s, p) => s + p.expectedAmount, 0),
+          },
+          stats: {
+            totalInvoiced: data.metrics.totalBilled,
+            totalPaid: data.metrics.totalCollected,
+            outstanding: data.metrics.outstanding,
+            overdue: data.payments
+              .filter((p) => p.status === "OVERDUE")
+              .reduce((s, p) => s + p.expectedAmount, 0),
+          },
+          timeline: [],
+        });
+      }
+      return NextResponse.json({ error: "Client not found." }, { status: 404 });
+    }
 
     const clientServices = await db.select().from(services).where(eq(services.clientId, id));
     const schedules = await db.select().from(billingSchedules).where(eq(billingSchedules.clientId, id));
@@ -120,39 +168,36 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
       timeline,
     });
   } catch (error) {
-    if (isDatabaseNotConfigured(error)) {
-      const id = Number((await params).id);
-      const data = operationalStore.getClientById(id);
-      if (data) {
-        return NextResponse.json({
-          client: data.client,
-          services: [{ id, name: data.client.service, description: data.client.serviceDescription, billingAmount: data.client.monthlyFee, currency: "INR", status: "ACTIVE" }],
-          schedules: data.schedules,
-          billingSchedules: data.schedules,
-          invoices: data.invoices,
-          payments: data.payments,
-          followUps: data.followUps,
-          metrics: {
-            totalInvoiced: data.metrics.totalBilled,
-            totalPaid: data.metrics.totalCollected,
-            outstanding: data.metrics.outstanding,
-            overdue: data.payments.filter((p) => p.status === "OVERDUE").reduce((s, p) => s + p.expectedAmount, 0),
-          },
-          stats: {
-            totalInvoiced: data.metrics.totalBilled,
-            totalPaid: data.metrics.totalCollected,
-            outstanding: data.metrics.outstanding,
-            overdue: data.payments.filter((p) => p.status === "OVERDUE").reduce((s, p) => s + p.expectedAmount, 0),
-          },
-          timeline: [],
-        });
-      }
-      return databaseNotConfiguredResponse();
+    const id = Number((await params).id);
+    const data = operationalStore.getClientById(id);
+    if (data) {
+      return NextResponse.json({
+        client: data.client,
+        services: [{ id, name: data.client.service, description: data.client.serviceDescription, billingAmount: data.client.monthlyFee, currency: "INR", status: "ACTIVE" }],
+        schedules: data.schedules,
+        billingSchedules: data.schedules,
+        invoices: data.invoices,
+        payments: data.payments,
+        followUps: data.followUps,
+        metrics: {
+          totalInvoiced: data.metrics.totalBilled,
+          totalPaid: data.metrics.totalCollected,
+          outstanding: data.metrics.outstanding,
+          overdue: data.payments.filter((p) => p.status === "OVERDUE").reduce((s, p) => s + p.expectedAmount, 0),
+        },
+        stats: {
+          totalInvoiced: data.metrics.totalBilled,
+          totalPaid: data.metrics.totalCollected,
+          outstanding: data.metrics.outstanding,
+          overdue: data.payments.filter((p) => p.status === "OVERDUE").reduce((s, p) => s + p.expectedAmount, 0),
+        },
+        timeline: [],
+      });
     }
     const msg = error instanceof Error ? error.message : "";
     return NextResponse.json(
-      { error: msg === "UNAUTHORIZED" ? "Authentication required." : msg === "FORBIDDEN" ? "Insufficient permissions." : "Unable to load client profile." },
-      { status: msg === "UNAUTHORIZED" ? 401 : msg === "FORBIDDEN" ? 403 : 500 }
+      { error: msg === "UNAUTHORIZED" ? "Authentication required." : msg === "FORBIDDEN" ? "Insufficient permissions." : "Client not found." },
+      { status: msg === "UNAUTHORIZED" ? 401 : msg === "FORBIDDEN" ? 403 : 404 }
     );
   }
 }

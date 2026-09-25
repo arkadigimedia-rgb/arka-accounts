@@ -13,6 +13,14 @@ export async function GET() {
     return NextResponse.json(demoPayments().filter((p) => p.status === "UPCOMING"));
   }
 
+  if (operationalStore.getClients().length === 0) {
+    try {
+      await operationalStore.syncLiveGoogleSheet();
+    } catch (e) {
+      console.error("Auto-sync error on empty store:", e);
+    }
+  }
+
   if (!process.env.DATABASE_URL) {
     return NextResponse.json(operationalStore.getPayments().filter((p) => p.status === "UPCOMING"));
   }
@@ -22,15 +30,11 @@ export async function GET() {
     const rows = (await getDb().select(paymentFields).from(payments).orderBy(desc(payments.id)))
       .map(lifecycleView)
       .filter((p) => p.status === "UPCOMING");
-    return NextResponse.json(rows);
-  } catch (error) {
-    if (isDatabaseNotConfigured(error)) {
-      return NextResponse.json(operationalStore.getPayments().filter((p) => p.status === "UPCOMING"));
+    if (rows.length > 0) {
+      return NextResponse.json(rows);
     }
-    const msg = error instanceof Error ? error.message : "";
-    return NextResponse.json(
-      { error: msg === "UNAUTHORIZED" ? "Authentication required." : msg === "FORBIDDEN" ? "Insufficient permissions." : "Unable to list payments." },
-      { status: msg === "UNAUTHORIZED" ? 401 : msg === "FORBIDDEN" ? 403 : 500 }
-    );
+    return NextResponse.json(operationalStore.getPayments().filter((p) => p.status === "UPCOMING"));
+  } catch (error) {
+    return NextResponse.json(operationalStore.getPayments().filter((p) => p.status === "UPCOMING"));
   }
 }

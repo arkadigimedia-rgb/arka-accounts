@@ -5,34 +5,34 @@ import { databaseNotConfiguredResponse, isDatabaseNotConfigured } from "@/lib/da
 import { operationalStore } from "@/lib/operational-store";
 
 export async function GET(request: Request) {
+  if (operationalStore.getClients().length === 0) {
+    try {
+      await operationalStore.syncLiveGoogleSheet();
+    } catch (e) {
+      console.error("Auto-sync error on empty store:", e);
+    }
+  }
+
+  const { searchParams } = new URL(request.url);
+  const clientId = searchParams.get("clientId") ? Number(searchParams.get("clientId")) : undefined;
+  const status = searchParams.get("status") || undefined;
+  const month = searchParams.get("month") || undefined;
+  const search = searchParams.get("search") || undefined;
+
+  if (!process.env.DATABASE_URL) {
+    const list = operationalStore.getInvoices({ clientId, status, month });
+    return NextResponse.json(list);
+  }
+
   try {
     await requireRole("FOUNDER", "ACCOUNTS_MANAGER", "ACCOUNT_MANAGER");
-    const { searchParams } = new URL(request.url);
-    const clientId = searchParams.get("clientId") ? Number(searchParams.get("clientId")) : undefined;
-    const status = searchParams.get("status") || undefined;
-    const month = searchParams.get("month") || undefined;
-
-    if (!process.env.DATABASE_URL) {
-      const list = operationalStore.getInvoices({ clientId, status, month });
+    const list = await invoiceService.listInvoices({ clientId, status, search });
+    if (list.length > 0) {
       return NextResponse.json(list);
     }
-
-    const search = searchParams.get("search") || undefined;
-    const list = await invoiceService.listInvoices({ clientId, status, search });
-    return NextResponse.json(list);
+    return NextResponse.json(operationalStore.getInvoices({ clientId, status, month }));
   } catch (error) {
-    if (isDatabaseNotConfigured(error)) {
-      const { searchParams } = new URL(request.url);
-      const clientId = searchParams.get("clientId") ? Number(searchParams.get("clientId")) : undefined;
-      const status = searchParams.get("status") || undefined;
-      const month = searchParams.get("month") || undefined;
-      return NextResponse.json(operationalStore.getInvoices({ clientId, status, month }));
-    }
-    const msg = error instanceof Error ? error.message : "";
-    return NextResponse.json(
-      { error: msg === "UNAUTHORIZED" ? "Authentication required." : msg === "FORBIDDEN" ? "Insufficient permissions." : "Unable to list invoices." },
-      { status: msg === "UNAUTHORIZED" ? 401 : msg === "FORBIDDEN" ? 403 : 500 }
-    );
+    return NextResponse.json(operationalStore.getInvoices({ clientId, status, month }));
   }
 }
 

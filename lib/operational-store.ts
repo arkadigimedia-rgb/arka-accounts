@@ -1,4 +1,4 @@
-import { extractSheetId, GoogleSheetsProvider } from "./google-sheets";
+import { DEFAULT_SHEET_ID, DEFAULT_SHEET_URL, extractSheetId, GoogleSheetsProvider } from "./google-sheets";
 
 export interface OperationalClient {
   id: number;
@@ -188,11 +188,11 @@ export class OperationalStore {
     this.configuredSheetUrl = null;
   }
 
-  getConfiguredSheetUrl(): string | null {
+  getConfiguredSheetUrl(): string {
     return (
       this.configuredSheetUrl ||
       process.env.GOOGLE_SHEET_URL ||
-      (process.env.GOOGLE_SHEET_ID ? `https://docs.google.com/spreadsheets/d/${process.env.GOOGLE_SHEET_ID}` : null)
+      (process.env.GOOGLE_SHEET_ID ? `https://docs.google.com/spreadsheets/d/${process.env.GOOGLE_SHEET_ID}` : DEFAULT_SHEET_URL)
     );
   }
 
@@ -209,12 +209,9 @@ export class OperationalStore {
       this.configuredSheetUrl ||
       process.env.GOOGLE_SHEET_URL ||
       process.env.GOOGLE_SHEET_ID ||
-      "";
+      DEFAULT_SHEET_ID;
 
-    const sheetId = extractSheetId(targetInput);
-    if (!sheetId) {
-      throw new Error("No Google Sheet configured. Please enter a valid Google Spreadsheet URL or ID in Settings.");
-    }
+    const sheetId = extractSheetId(targetInput) || DEFAULT_SHEET_ID;
 
     if (customSheetUrlOrId) {
       this.configuredSheetUrl = customSheetUrlOrId;

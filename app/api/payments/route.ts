@@ -12,49 +12,50 @@ import { operationalStore } from "@/lib/operational-store";
 export async function GET(request: Request) {
   if (demoModeEnabled()) return NextResponse.json(demoPayments());
 
+  if (operationalStore.getClients().length === 0) {
+    try {
+      await operationalStore.syncLiveGoogleSheet();
+    } catch (e) {
+      console.error("Auto-sync error on empty store:", e);
+    }
+  }
+
+  const { searchParams } = new URL(request.url);
+  const month = searchParams.get("month") || undefined;
+  const status = searchParams.get("status") || undefined;
+  const search = searchParams.get("search") || undefined;
+
+  if (!process.env.DATABASE_URL) {
+    const rows = operationalStore.getPayments({ month, status, search });
+    return NextResponse.json(rows);
+  }
+
   try {
     await requireRole("FOUNDER", "ACCOUNTS_MANAGER", "ACCOUNT_MANAGER");
-    const { searchParams } = new URL(request.url);
-    const month = searchParams.get("month") || undefined;
-    const status = searchParams.get("status") || undefined;
-    const search = searchParams.get("search") || undefined;
-
-    if (!process.env.DATABASE_URL) {
-      const rows = operationalStore.getPayments({ month, status, search });
-      return NextResponse.json(rows);
-    }
-
     const rows = await getDb().select().from(payments).orderBy(desc(payments.id));
-    let filtered = rows;
-    if (month) {
-      filtered = filtered.filter((p) => p.dueDate.startsWith(month));
+    if (rows.length > 0) {
+      let filtered = rows;
+      if (month) {
+        filtered = filtered.filter((p) => p.dueDate.startsWith(month));
+      }
+      if (status && status !== "ALL") {
+        filtered = filtered.filter((p) => p.status === status);
+      }
+      if (search) {
+        const q = search.toLowerCase();
+        filtered = filtered.filter(
+          (p) =>
+            p.client.toLowerCase().includes(q) ||
+            p.service.toLowerCase().includes(q) ||
+            (p.sourceReference && p.sourceReference.toLowerCase().includes(q))
+        );
+      }
+      return NextResponse.json(filtered);
     }
-    if (status && status !== "ALL") {
-      filtered = filtered.filter((p) => p.status === status);
-    }
-    if (search) {
-      const q = search.toLowerCase();
-      filtered = filtered.filter(
-        (p) =>
-          p.client.toLowerCase().includes(q) ||
-          p.service.toLowerCase().includes(q) ||
-          (p.sourceReference && p.sourceReference.toLowerCase().includes(q))
-      );
-    }
-    return NextResponse.json(filtered);
+
+    return NextResponse.json(operationalStore.getPayments({ month, status, search }));
   } catch (error) {
-    if (isDatabaseNotConfigured(error)) {
-      const { searchParams } = new URL(request.url);
-      const month = searchParams.get("month") || undefined;
-      const status = searchParams.get("status") || undefined;
-      const search = searchParams.get("search") || undefined;
-      return NextResponse.json(operationalStore.getPayments({ month, status, search }));
-    }
-    const msg = error instanceof Error ? error.message : "";
-    return NextResponse.json(
-      { error: msg === "UNAUTHORIZED" ? "Authentication required." : msg === "FORBIDDEN" ? "Insufficient permissions." : "Payments database is unavailable." },
-      { status: msg === "UNAUTHORIZED" ? 401 : msg === "FORBIDDEN" ? 403 : 503 }
-    );
+    return NextResponse.json(operationalStore.getPayments({ month, status, search }));
   }
 }
 

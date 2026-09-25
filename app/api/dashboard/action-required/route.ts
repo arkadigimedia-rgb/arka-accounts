@@ -15,6 +15,14 @@ export async function GET() {
     return NextResponse.json(paymentLifecycle.actionRequired(demos));
   }
 
+  if (operationalStore.getClients().length === 0) {
+    try {
+      await operationalStore.syncLiveGoogleSheet();
+    } catch (e) {
+      console.error("Auto-sync error on empty store:", e);
+    }
+  }
+
   if (!process.env.DATABASE_URL) {
     const rows = operationalStore.getActionRequired();
     return NextResponse.json(paymentLifecycle.actionRequired(rows as any));
@@ -23,16 +31,13 @@ export async function GET() {
   try {
     await requireRole("FOUNDER", "ACCOUNTS_MANAGER", "ACCOUNT_MANAGER");
     const rows = await getDb().select(paymentFields).from(payments).orderBy(desc(payments.id));
-    return NextResponse.json(paymentLifecycle.actionRequired(rows));
-  } catch (error) {
-    if (isDatabaseNotConfigured(error)) {
-      const rows = operationalStore.getActionRequired();
-      return NextResponse.json(paymentLifecycle.actionRequired(rows as any));
+    if (rows.length > 0) {
+      return NextResponse.json(paymentLifecycle.actionRequired(rows));
     }
-    const msg = error instanceof Error ? error.message : "";
-    return NextResponse.json(
-      { error: msg === "UNAUTHORIZED" ? "Authentication required." : msg === "FORBIDDEN" ? "Insufficient permissions." : "Unable to load action-required payments." },
-      { status: msg === "UNAUTHORIZED" ? 401 : msg === "FORBIDDEN" ? 403 : 500 }
-    );
+    const storeRows = operationalStore.getActionRequired();
+    return NextResponse.json(paymentLifecycle.actionRequired(storeRows as any));
+  } catch (error) {
+    const rows = operationalStore.getActionRequired();
+    return NextResponse.json(paymentLifecycle.actionRequired(rows as any));
   }
 }

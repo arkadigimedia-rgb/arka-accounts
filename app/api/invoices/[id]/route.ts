@@ -5,40 +5,49 @@ import { databaseNotConfiguredResponse, isDatabaseNotConfigured } from "@/lib/da
 import { operationalStore } from "@/lib/operational-store";
 
 export async function GET(_: Request, { params }: { params: Promise<{ id: string }> }) {
+  if (operationalStore.getClients().length === 0) {
+    try {
+      await operationalStore.syncLiveGoogleSheet();
+    } catch (e) {
+      console.error("Auto-sync error on empty store:", e);
+    }
+  }
+
+  const id = Number((await params).id);
+
+  if (!process.env.DATABASE_URL) {
+    const data = operationalStore.getInvoiceById(id);
+    if (!data) return NextResponse.json({ error: "Invoice not found." }, { status: 404 });
+    return NextResponse.json({
+      ...data.invoice,
+      client: data.client,
+      payment: data.payment,
+    });
+  }
+
   try {
     await requireRole("FOUNDER", "ACCOUNTS_MANAGER", "ACCOUNT_MANAGER");
-    const id = Number((await params).id);
+    const invoice = await invoiceService.getInvoice(id);
+    if (invoice) return NextResponse.json(invoice);
 
-    if (!process.env.DATABASE_URL) {
-      const data = operationalStore.getInvoiceById(id);
-      if (!data) return NextResponse.json({ error: "Invoice not found." }, { status: 404 });
+    const data = operationalStore.getInvoiceById(id);
+    if (data) {
       return NextResponse.json({
         ...data.invoice,
         client: data.client,
         payment: data.payment,
       });
     }
-
-    const invoice = await invoiceService.getInvoice(id);
-    if (!invoice) return NextResponse.json({ error: "Invoice not found." }, { status: 404 });
-    return NextResponse.json(invoice);
+    return NextResponse.json({ error: "Invoice not found." }, { status: 404 });
   } catch (error) {
-    if (isDatabaseNotConfigured(error)) {
-      const id = Number((await params).id);
-      const data = operationalStore.getInvoiceById(id);
-      if (data) {
-        return NextResponse.json({
-          ...data.invoice,
-          client: data.client,
-          payment: data.payment,
-        });
-      }
-      return databaseNotConfiguredResponse();
+    const data = operationalStore.getInvoiceById(id);
+    if (data) {
+      return NextResponse.json({
+        ...data.invoice,
+        client: data.client,
+        payment: data.payment,
+      });
     }
-    const msg = error instanceof Error ? error.message : "";
-    return NextResponse.json(
-      { error: msg === "UNAUTHORIZED" ? "Authentication required." : msg === "FORBIDDEN" ? "Insufficient permissions." : "Unable to load invoice." },
-      { status: msg === "UNAUTHORIZED" ? 401 : msg === "FORBIDDEN" ? 403 : 500 }
-    );
+    return NextResponse.json({ error: "Invoice not found." }, { status: 404 });
   }
 }

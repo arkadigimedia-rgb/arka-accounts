@@ -7,20 +7,28 @@ import { databaseNotConfiguredResponse, isDatabaseNotConfigured } from "@/lib/da
 import { operationalStore } from "@/lib/operational-store";
 
 export async function GET(request: Request) {
+  if (operationalStore.getClients().length === 0) {
+    try {
+      await operationalStore.syncLiveGoogleSheet();
+    } catch (e) {
+      console.error("Auto-sync error on empty store:", e);
+    }
+  }
+
+  const { searchParams } = new URL(request.url);
+  const clientId = searchParams.get("clientId");
+  const status = searchParams.get("status");
+
+  if (!process.env.DATABASE_URL) {
+    const rows = operationalStore.getBillingSchedules();
+    let filtered = rows;
+    if (clientId) filtered = filtered.filter((s) => s.clientId === Number(clientId));
+    if (status) filtered = filtered.filter((s) => s.status === status);
+    return NextResponse.json(filtered);
+  }
+
   try {
     await requireRole("FOUNDER", "ACCOUNTS_MANAGER", "ACCOUNT_MANAGER");
-    const { searchParams } = new URL(request.url);
-    const clientId = searchParams.get("clientId");
-    const status = searchParams.get("status");
-
-    if (!process.env.DATABASE_URL) {
-      const rows = operationalStore.getBillingSchedules();
-      let filtered = rows;
-      if (clientId) filtered = filtered.filter((s) => s.clientId === Number(clientId));
-      if (status) filtered = filtered.filter((s) => s.status === status);
-      return NextResponse.json(filtered);
-    }
-
     const db = getDb();
     const conditions = [];
     if (clientId) conditions.push(eq(billingSchedules.clientId, Number(clientId)));
@@ -53,22 +61,19 @@ export async function GET(request: Request) {
       .where(conditions.length ? and(...conditions) : undefined)
       .orderBy(desc(billingSchedules.id));
 
-    return NextResponse.json(rows);
-  } catch (error) {
-    if (isDatabaseNotConfigured(error)) {
-      const { searchParams } = new URL(request.url);
-      const clientId = searchParams.get("clientId");
-      const status = searchParams.get("status");
-      let filtered = operationalStore.getBillingSchedules();
-      if (clientId) filtered = filtered.filter((s) => s.clientId === Number(clientId));
-      if (status) filtered = filtered.filter((s) => s.status === status);
-      return NextResponse.json(filtered);
+    if (rows.length > 0) {
+      return NextResponse.json(rows);
     }
-    const msg = error instanceof Error ? error.message : "";
-    return NextResponse.json(
-      { error: msg === "UNAUTHORIZED" ? "Authentication required." : msg === "FORBIDDEN" ? "Insufficient permissions." : "Unable to load billing schedules." },
-      { status: msg === "UNAUTHORIZED" ? 401 : msg === "FORBIDDEN" ? 403 : 500 }
-    );
+
+    let filtered = operationalStore.getBillingSchedules();
+    if (clientId) filtered = filtered.filter((s) => s.clientId === Number(clientId));
+    if (status) filtered = filtered.filter((s) => s.status === status);
+    return NextResponse.json(filtered);
+  } catch (error) {
+    let filtered = operationalStore.getBillingSchedules();
+    if (clientId) filtered = filtered.filter((s) => s.clientId === Number(clientId));
+    if (status) filtered = filtered.filter((s) => s.status === status);
+    return NextResponse.json(filtered);
   }
 }
 

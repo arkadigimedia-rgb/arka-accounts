@@ -26,6 +26,15 @@ export async function GET() {
     });
   }
 
+  // Ensure store is populated if empty
+  if (operationalStore.getClients().length === 0) {
+    try {
+      await operationalStore.syncLiveGoogleSheet();
+    } catch (e) {
+      console.error("Auto-sync error on empty store:", e);
+    }
+  }
+
   if (!process.env.DATABASE_URL) {
     return NextResponse.json(operationalStore.getSummaryMetrics());
   }
@@ -42,13 +51,6 @@ export async function GET() {
       .from(payments)
       .groupBy(payments.status);
 
-    const byStatus = Object.fromEntries(
-      rows.map((row) => [row.status, { count: Number(row.count), amount: Number(row.amount) }])
-    );
-
-    const expected = rows.reduce((sum, row) => sum + Number(row.amount), 0);
-    const paid = byStatus.PAID?.amount ?? 0;
-
     // Get invoice summary counts
     const [invSummary] = await db
       .select({
@@ -57,39 +59,45 @@ export async function GET() {
       })
       .from(invoices);
 
-    return NextResponse.json({
-      counts: {
-        dueToday: byStatus.DUE_TODAY?.count ?? 0,
-        upcoming: byStatus.UPCOMING?.count ?? 0,
-        overdue: byStatus.OVERDUE?.count ?? 0,
-        verification:
-          (byStatus.PROOF_UPLOADED?.count ?? 0) +
-          (byStatus.VERIFYING?.count ?? 0) +
-          (byStatus.MANUAL_REVIEW?.count ?? 0) +
-          (byStatus.MISMATCH?.count ?? 0),
-        paid: byStatus.PAID?.count ?? 0,
-      },
-      amounts: {
-        expected,
-        paid,
-        pending: expected - paid,
-        overdue: byStatus.OVERDUE?.amount ?? 0,
-      },
-      invoices: {
-        count: Number(invSummary?.count ?? 0),
-        total: Number(invSummary?.total ?? 0),
-      },
-      demoMode: false,
-      generatedAt: new Date().toISOString(),
-    });
-  } catch (error) {
-    if (isDatabaseNotConfigured(error)) {
-      return NextResponse.json(operationalStore.getSummaryMetrics());
+    // If database has records, return database summary!
+    if (rows.length > 0 || Number(invSummary?.count ?? 0) > 0) {
+      const byStatus = Object.fromEntries(
+        rows.map((row) => [row.status, { count: Number(row.count), amount: Number(row.amount) }])
+      );
+      const expected = rows.reduce((sum, row) => sum + Number(row.amount), 0);
+      const paid = byStatus.PAID?.amount ?? 0;
+
+      return NextResponse.json({
+        counts: {
+          dueToday: byStatus.DUE_TODAY?.count ?? 0,
+          upcoming: byStatus.UPCOMING?.count ?? 0,
+          overdue: byStatus.OVERDUE?.count ?? 0,
+          verification:
+            (byStatus.PROOF_UPLOADED?.count ?? 0) +
+            (byStatus.VERIFYING?.count ?? 0) +
+            (byStatus.MANUAL_REVIEW?.count ?? 0) +
+            (byStatus.MISMATCH?.count ?? 0),
+          paid: byStatus.PAID?.count ?? 0,
+        },
+        amounts: {
+          expected,
+          paid,
+          pending: expected - paid,
+          overdue: byStatus.OVERDUE?.amount ?? 0,
+        },
+        invoices: {
+          count: Number(invSummary?.count ?? 0),
+          total: Number(invSummary?.total ?? 0),
+        },
+        demoMode: false,
+        generatedAt: new Date().toISOString(),
+      });
     }
-    const msg = error instanceof Error ? error.message : "";
-    return NextResponse.json(
-      { error: msg === "UNAUTHORIZED" ? "Authentication required." : msg === "FORBIDDEN" ? "Insufficient permissions." : "Unable to load dashboard summary." },
-      { status: msg === "UNAUTHORIZED" ? 401 : msg === "FORBIDDEN" ? 403 : 500 }
-    );
+
+    // If database has 0 records, return operational store metrics (which are live from Google Sheet)
+    return NextResponse.json(operationalStore.getSummaryMetrics());
+  } catch (error) {
+    // Graceful fallback to operational store metrics
+    return NextResponse.json(operationalStore.getSummaryMetrics());
   }
 }

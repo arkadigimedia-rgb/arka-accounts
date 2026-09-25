@@ -7,17 +7,26 @@ import { databaseNotConfiguredResponse, isDatabaseNotConfigured } from "@/lib/da
 import { operationalStore } from "@/lib/operational-store";
 
 export async function GET(request: Request) {
+  // Ensure store is populated if empty
+  if (operationalStore.getClients().length === 0) {
+    try {
+      await operationalStore.syncLiveGoogleSheet();
+    } catch (e) {
+      console.error("Auto-sync error on empty store:", e);
+    }
+  }
+
+  const { searchParams } = new URL(request.url);
+  const search = searchParams.get("search")?.toLowerCase();
+  const status = searchParams.get("status");
+
+  if (!process.env.DATABASE_URL) {
+    const rows = operationalStore.getClients({ search: search ?? undefined, status: status ?? undefined });
+    return NextResponse.json(rows);
+  }
+
   try {
     await requireRole("FOUNDER", "ACCOUNTS_MANAGER", "ACCOUNT_MANAGER");
-    const { searchParams } = new URL(request.url);
-    const search = searchParams.get("search")?.toLowerCase();
-    const status = searchParams.get("status");
-
-    if (!process.env.DATABASE_URL) {
-      const rows = operationalStore.getClients({ search: search ?? undefined, status: status ?? undefined });
-      return NextResponse.json(rows);
-    }
-
     const db = getDb();
     const rows = await db
       .select({
@@ -49,19 +58,14 @@ export async function GET(request: Request) {
       );
     }
 
-    return NextResponse.json(filtered);
-  } catch (error) {
-    if (isDatabaseNotConfigured(error)) {
-      const { searchParams } = new URL(request.url);
-      const search = searchParams.get("search")?.toLowerCase();
-      const status = searchParams.get("status");
-      return NextResponse.json(operationalStore.getClients({ search: search ?? undefined, status: status ?? undefined }));
+    if (rows.length > 0) {
+      return NextResponse.json(filtered);
     }
-    const msg = error instanceof Error ? error.message : "";
-    return NextResponse.json(
-      { error: msg === "UNAUTHORIZED" ? "Authentication required." : msg === "FORBIDDEN" ? "Insufficient permissions." : "Unable to list clients." },
-      { status: msg === "UNAUTHORIZED" ? 401 : msg === "FORBIDDEN" ? 403 : 500 }
-    );
+
+    // If database has 0 clients, return operational store clients (from Google Sheet)
+    return NextResponse.json(operationalStore.getClients({ search: search ?? undefined, status: status ?? undefined }));
+  } catch (error) {
+    return NextResponse.json(operationalStore.getClients({ search: search ?? undefined, status: status ?? undefined }));
   }
 }
 

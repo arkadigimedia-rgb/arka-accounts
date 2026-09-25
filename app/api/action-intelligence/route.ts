@@ -8,28 +8,36 @@ import { databaseNotConfiguredResponse, isDatabaseNotConfigured } from "@/lib/da
 import { operationalStore } from "@/lib/operational-store";
 
 export async function GET(request: Request) {
+  if (operationalStore.getClients().length === 0) {
+    try {
+      await operationalStore.syncLiveGoogleSheet();
+    } catch (e) {
+      console.error("Auto-sync error on empty store:", e);
+    }
+  }
+
+  const q = new URL(request.url).searchParams;
+
+  if (demoModeEnabled()) {
+    const actions = actionIntelligence
+      .actions(demoPayments().map((p) => ({ ...p, email: "demo@example.test" })))
+      .filter((a) => !q.get("client") || a.client.toLowerCase().includes(q.get("client")!.toLowerCase()));
+    return NextResponse.json({ actions: actions.slice(0, Number(q.get("limit") ?? 50)) });
+  }
+
+  if (!process.env.DATABASE_URL) {
+    const rows = operationalStore.getPayments().map((p) => ({
+      id: p.id,
+      client: p.client,
+      service: p.service,
+      expectedAmount: p.expectedAmount,
+      dueDate: p.dueDate,
+      status: p.status,
+    }));
+    return NextResponse.json({ actions: actionIntelligence.actions(rows).slice(0, Number(q.get("limit") ?? 50)) });
+  }
+
   try {
-    const q = new URL(request.url).searchParams;
-
-    if (demoModeEnabled()) {
-      const actions = actionIntelligence
-        .actions(demoPayments().map((p) => ({ ...p, email: "demo@example.test" })))
-        .filter((a) => !q.get("client") || a.client.toLowerCase().includes(q.get("client")!.toLowerCase()));
-      return NextResponse.json({ actions: actions.slice(0, Number(q.get("limit") ?? 50)) });
-    }
-
-    if (!process.env.DATABASE_URL) {
-      const rows = operationalStore.getPayments().map((p) => ({
-        id: p.id,
-        client: p.client,
-        service: p.service,
-        expectedAmount: p.expectedAmount,
-        dueDate: p.dueDate,
-        status: p.status,
-      }));
-      return NextResponse.json({ actions: actionIntelligence.actions(rows).slice(0, Number(q.get("limit") ?? 50)) });
-    }
-
     await requireRole("FOUNDER", "ACCOUNTS_MANAGER");
     const rows = await getDb()
       .select({
@@ -42,19 +50,28 @@ export async function GET(request: Request) {
       })
       .from(payments);
 
-    return NextResponse.json({ actions: actionIntelligence.actions(rows).slice(0, Number(q.get("limit") ?? 50)) });
-  } catch (error) {
-    if (isDatabaseNotConfigured(error)) {
-      const rows = operationalStore.getPayments().map((p) => ({
-        id: p.id,
-        client: p.client,
-        service: p.service,
-        expectedAmount: p.expectedAmount,
-        dueDate: p.dueDate,
-        status: p.status,
-      }));
-      return NextResponse.json({ actions: actionIntelligence.actions(rows).slice(0, 50) });
+    if (rows.length > 0) {
+      return NextResponse.json({ actions: actionIntelligence.actions(rows).slice(0, Number(q.get("limit") ?? 50)) });
     }
-    return NextResponse.json({ error: "Unable to load action intelligence." }, { status: 500 });
+
+    const storeRows = operationalStore.getPayments().map((p) => ({
+      id: p.id,
+      client: p.client,
+      service: p.service,
+      expectedAmount: p.expectedAmount,
+      dueDate: p.dueDate,
+      status: p.status,
+    }));
+    return NextResponse.json({ actions: actionIntelligence.actions(storeRows).slice(0, Number(q.get("limit") ?? 50)) });
+  } catch (error) {
+    const rows = operationalStore.getPayments().map((p) => ({
+      id: p.id,
+      client: p.client,
+      service: p.service,
+      expectedAmount: p.expectedAmount,
+      dueDate: p.dueDate,
+      status: p.status,
+    }));
+    return NextResponse.json({ actions: actionIntelligence.actions(rows).slice(0, 50) });
   }
 }
