@@ -4,6 +4,11 @@ ARKA Accounts is a production-grade financial operations and accounts receivable
 
 The system uses **Neon PostgreSQL** as its operational source of truth. **Google Sheets** functions as a live operational input and collaborative synchronization source.
 
+**Production Deployment:**
+- **Host:** Vercel (Next.js Edge / Serverless)
+- **Production Domain:** `accounts.arkadigitalmedia.in`
+- **DNS Routing:** Hostinger CNAME -> `cname.vercel-dns.com`
+
 ---
 
 ## Key Capabilities
