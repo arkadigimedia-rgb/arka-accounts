@@ -1,0 +1,19 @@
+services:
+  arka-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: arka-finance-app
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - HOST=0.0.0.0
+      - DATABASE_URL=${DATABASE_URL}
+      - AUTH_SECRET=${AUTH_SECRET}
+      - GOOGLE_SHEET_URL=${GOOGLE_SHEET_URL}
+      - AUTOMATION_SECRET=${AUTOMATION_SECRET}
+    env_file:
+      - .env

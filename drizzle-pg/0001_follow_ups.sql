@@ -1,0 +1,1 @@
+CREATE TABLE follow_ups (id serial PRIMARY KEY,payment_id integer NOT NULL REFERENCES payments(id),user_id integer NOT NULL REFERENCES users(id),action varchar(96) NOT NULL,notes text,follow_up_date date NOT NULL,created_at timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP);
