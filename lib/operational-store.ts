@@ -273,19 +273,35 @@ export class OperationalStore {
       ).toLowerCase();
       const remarks = normalizedKeys["remarks"] || "";
 
-      // Parse dates
-      const parsedInvDate = parseSheetDate(invoiceDateRaw) || {
-        year: "2026",
-        month: "10",
-        day: "01",
-        iso: "2026-10-01",
-      };
-      const parsedDueDate = parseSheetDate(dueDateRaw) || {
-        year: "2026",
-        month: "10",
-        day: "05",
-        iso: "2026-10-05",
-      };
+      // Extract day from billing cycle if present (e.g. "8th to 8th" -> 8, "1st to 1st" -> 1)
+      let cycleDay = 1;
+      const cycleMatch = billingCycle.match(/(\d+)/);
+      if (cycleMatch) {
+        cycleDay = Math.min(Math.max(Number(cycleMatch[1]), 1), 28);
+      }
+
+      const currentYear = "2026";
+      const currentMonth = "10";
+      const defaultInvDay = cycleDay;
+      const defaultDueDay = Math.min(cycleDay + 5, 30);
+
+      const parsedInvDate = invoiceDateRaw
+        ? parseSheetDate(invoiceDateRaw)
+        : {
+            year: currentYear,
+            month: currentMonth,
+            day: defaultInvDay,
+            iso: `${currentYear}-${currentMonth}-${String(defaultInvDay).padStart(2, "0")}`,
+          };
+
+      const parsedDueDate = dueDateRaw
+        ? parseSheetDate(dueDateRaw)
+        : {
+            year: currentYear,
+            month: currentMonth,
+            day: defaultDueDay,
+            iso: `${currentYear}-${currentMonth}-${String(defaultDueDay).padStart(2, "0")}`,
+          };
 
       const isPaid =
         paymentStatusRaw.includes("received") ||

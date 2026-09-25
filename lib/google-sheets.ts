@@ -59,7 +59,11 @@ function parseCsv(csvText: string): Record<string, string>[] {
 }
 
 export class GoogleSheetsProvider implements SheetProvider {
-  constructor(private readonly customSheetIdOrUrl?: string) {}
+  private readonly customSheetIdOrUrl?: string;
+
+  constructor(customSheetIdOrUrl?: string) {
+    this.customSheetIdOrUrl = customSheetIdOrUrl;
+  }
 
   private getSheetId(): string | null {
     return extractSheetId(
