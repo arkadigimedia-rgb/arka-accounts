@@ -8,6 +8,7 @@ import {
   ArrowRight,
   CheckCircle2,
   Clock,
+  Crown,
   ExternalLink,
   FileCheck,
   FileSpreadsheet,
@@ -44,14 +45,21 @@ type SummaryData = {
     paid: number;
   };
   amounts: {
-    expected: number;
+    expected: number | null;
     paid: number;
     pending: number;
     overdue: number;
   };
   invoices: {
     count: number;
-    total: number;
+    total: number | null;
+  };
+  role?: "FOUNDER" | "HR";
+  user?: {
+    id: number;
+    name: string;
+    email: string;
+    role: "FOUNDER" | "HR";
   };
   demoMode: boolean;
 };
@@ -151,28 +159,45 @@ export default function ActionCenterPage() {
   const dueTodayItems = actions.filter((a) => a.type === "PAYMENT_DUE");
   const reminderItems = actions.filter((a) => a.type === "REMINDER_REQUIRED");
 
+  const isHr = summary?.role === "HR" || summary?.amounts?.expected === null;
+
   return (
     <ArkaShell>
       <div className="space-y-8">
         {/* Banner */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-slate-900 text-white p-6 rounded-3xl border border-slate-800 shadow-sm">
           <div>
-            <span className="text-[11px] font-bold uppercase tracking-widest text-amber-400">
-              ACCOUNTS WORKSPACE · ACTION CENTER
-            </span>
+            <div className="flex items-center gap-2">
+              <span className="text-[11px] font-bold uppercase tracking-widest text-amber-400">
+                ACCOUNTS WORKSPACE · ACTION CENTER
+              </span>
+              {isHr ? (
+                <span className="text-[10px] font-extrabold uppercase tracking-wider bg-purple-900/80 text-purple-200 border border-purple-600 px-2.5 py-0.5 rounded-full flex items-center gap-1">
+                  <UserCheck className="h-3 w-3 text-purple-300" /> HR Mode
+                </span>
+              ) : (
+                <span className="text-[10px] font-extrabold uppercase tracking-wider bg-amber-400/20 text-amber-300 border border-amber-400/30 px-2.5 py-0.5 rounded-full flex items-center gap-1">
+                  <Crown className="h-3 w-3 text-amber-400" /> Founder Mode
+                </span>
+              )}
+            </div>
             <h2 className="text-2xl sm:text-3xl font-black mt-1">What needs attention today?</h2>
             <p className="text-xs sm:text-sm text-slate-300 mt-1.5 max-w-2xl leading-relaxed">
-              Real-time operational dashboard for client payment tracking, billing invoices, verification, and automated collection.
+              {isHr
+                ? "HR & Operations Desk: Monitor confirmed collections, track pending client dues, and trigger operational follow-ups."
+                : "Real-time enterprise dashboard for client payment tracking, billing invoices, verification, and automated collection."}
             </p>
           </div>
           <div className="flex gap-2">
-            <Link
-              href="/invoices"
-              className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-amber-400 text-slate-950 font-bold text-xs hover:bg-amber-300 transition"
-            >
-              <FileText className="h-4 w-4" />
-              Invoices
-            </Link>
+            {!isHr && (
+              <Link
+                href="/invoices"
+                className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-amber-400 text-slate-950 font-bold text-xs hover:bg-amber-300 transition"
+              >
+                <FileText className="h-4 w-4" />
+                Invoices
+              </Link>
+            )}
             <Link
               href="/verification"
               className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-slate-800 text-white font-bold text-xs hover:bg-slate-700 transition"
@@ -192,81 +217,126 @@ export default function ActionCenterPage() {
           </div>
         )}
 
-        {summary && summary.amounts.expected === 0 && (
-          <div className="p-6 rounded-3xl bg-amber-50 border border-amber-200 text-amber-950 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div className="space-y-1">
-              <h3 className="font-bold text-sm text-amber-950 flex items-center gap-2">
-                <FileSpreadsheet className="h-4 w-4 text-amber-600" />
-                No Operational Records Ingested
-              </h3>
-              <p className="text-xs text-amber-800">
-                ARKA is currently clean with zero client or invoice records. Connect your Google Spreadsheet in Settings to start synchronizing clients and invoices.
-              </p>
+        {/* Financial KPI Summary Cards */}
+        {isHr ? (
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-bold text-purple-700 bg-purple-50 border border-purple-200 px-3 py-1 rounded-full inline-flex items-center gap-1.5">
+                <UserCheck className="h-3.5 w-3.5 text-purple-700" />
+                HR Operations View · Collection & Pending Dues Status
+              </span>
             </div>
-            <Link
-              href="/settings"
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs transition shrink-0 shadow-xs"
-            >
-              <span>Connect Google Sheet</span>
-              <ArrowRight className="h-3.5 w-3.5" />
-            </Link>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              {/* 1. Total Collected */}
+              <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+                <div className="flex items-center justify-between text-slate-500 text-xs font-semibold">
+                  <span className="text-emerald-800 font-bold">Total Collected</span>
+                  <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                </div>
+                <p className="text-3xl font-black text-emerald-700 mt-2">
+                  {formatINR(summary?.amounts?.paid ?? 0)}
+                </p>
+                <span className="text-[11px] text-emerald-700 font-medium mt-1 block">
+                  {summary?.counts?.paid ?? 0} confirmed client payments
+                </span>
+              </div>
+
+              {/* 2. Pending Collection */}
+              <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+                <div className="flex items-center justify-between text-slate-500 text-xs font-semibold">
+                  <span className="text-amber-800 font-bold">Pending Collection</span>
+                  <Clock className="h-4 w-4 text-amber-600" />
+                </div>
+                <p className="text-3xl font-black text-amber-700 mt-2">
+                  {formatINR(summary?.amounts?.pending ?? 0)}
+                </p>
+                <span className="text-[11px] text-amber-700 font-medium mt-1 block">
+                  {(summary?.counts?.dueToday ?? 0) + (summary?.counts?.upcoming ?? 0)} upcoming / due accounts
+                </span>
+              </div>
+
+              {/* 3. Overdue Dues */}
+              <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+                <div className="flex items-center justify-between text-slate-500 text-xs font-semibold">
+                  <span className="text-rose-800 font-bold">Overdue Dues</span>
+                  <AlertTriangle className="h-4 w-4 text-rose-600" />
+                </div>
+                <p className="text-3xl font-black text-rose-700 mt-2">
+                  {formatINR(summary?.amounts?.overdue ?? 0)}
+                </p>
+                <span className="text-[11px] text-rose-700 font-bold mt-1 block">
+                  {summary?.counts?.overdue ?? 0} accounts requiring follow-up
+                </span>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-bold text-amber-800 bg-amber-50 border border-amber-200 px-3 py-1 rounded-full inline-flex items-center gap-1.5">
+                <Crown className="h-3.5 w-3.5 text-amber-600" />
+                Founder Portal · Full Billed Value & Revenue Oversight
+              </span>
+            </div>
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+              {/* 1. Total Billed Value */}
+              <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm ring-1 ring-amber-400/40">
+                <div className="flex items-center justify-between text-slate-500 text-xs font-semibold">
+                  <span className="text-amber-800 font-bold">Total Billed Value</span>
+                  <FileText className="h-4 w-4 text-amber-500" />
+                </div>
+                <p className="text-2xl font-black text-slate-900 mt-2">
+                  {formatINR(summary?.amounts?.expected ?? 0)}
+                </p>
+                <span className="text-[11px] text-slate-500 mt-1 block">
+                  {summary?.invoices?.count ?? 0} client contracts billed
+                </span>
+              </div>
+
+              {/* 2. Total Collected */}
+              <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+                <div className="flex items-center justify-between text-slate-500 text-xs font-semibold">
+                  <span className="text-emerald-800 font-bold">Total Collected</span>
+                  <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                </div>
+                <p className="text-2xl font-black text-emerald-700 mt-2">
+                  {formatINR(summary?.amounts?.paid ?? 0)}
+                </p>
+                <span className="text-[11px] text-emerald-700 font-medium mt-1 block">
+                  {summary?.counts?.paid ?? 0} confirmed paid
+                </span>
+              </div>
+
+              {/* 3. Pending Collection */}
+              <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+                <div className="flex items-center justify-between text-slate-500 text-xs font-semibold">
+                  <span className="text-amber-800 font-bold">Pending Collection</span>
+                  <Clock className="h-4 w-4 text-amber-600" />
+                </div>
+                <p className="text-2xl font-black text-amber-700 mt-2">
+                  {formatINR(summary?.amounts?.pending ?? 0)}
+                </p>
+                <span className="text-[11px] text-amber-700 font-medium mt-1 block">
+                  {(summary?.counts?.dueToday ?? 0) + (summary?.counts?.upcoming ?? 0)} upcoming / due
+                </span>
+              </div>
+
+              {/* 4. Overdue Balance */}
+              <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+                <div className="flex items-center justify-between text-slate-500 text-xs font-semibold">
+                  <span className="text-rose-800 font-bold">Overdue Balance</span>
+                  <AlertTriangle className="h-4 w-4 text-rose-600" />
+                </div>
+                <p className="text-2xl font-black text-rose-700 mt-2">
+                  {formatINR(summary?.amounts?.overdue ?? 0)}
+                </p>
+                <span className="text-[11px] text-rose-700 font-bold mt-1 block">
+                  {summary?.counts?.overdue ?? 0} payments overdue
+                </span>
+              </div>
+            </div>
           </div>
         )}
-
-        {/* Financial KPI Summary Cards */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
-            <div className="flex items-center justify-between text-slate-500 text-xs font-semibold">
-              <span>Total Invoiced</span>
-              <FileText className="h-4 w-4 text-slate-400" />
-            </div>
-            <p className="text-2xl font-black text-slate-900 mt-2">
-              {formatINR(summary?.amounts?.expected ?? 0)}
-            </p>
-            <span className="text-[11px] text-slate-500 mt-1 block">
-              {summary?.invoices?.count ?? 0} invoices generated
-            </span>
-          </div>
-
-          <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
-            <div className="flex items-center justify-between text-slate-500 text-xs font-semibold">
-              <span>Total Collected</span>
-              <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-            </div>
-            <p className="text-2xl font-black text-emerald-700 mt-2">
-              {formatINR(summary?.amounts?.paid ?? 0)}
-            </p>
-            <span className="text-[11px] text-emerald-700 font-medium mt-1 block">
-              {summary?.counts?.paid ?? 0} confirmed paid
-            </span>
-          </div>
-
-          <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
-            <div className="flex items-center justify-between text-slate-500 text-xs font-semibold">
-              <span>Overdue Balance</span>
-              <AlertTriangle className="h-4 w-4 text-rose-600" />
-            </div>
-            <p className="text-2xl font-black text-rose-700 mt-2">
-              {formatINR(summary?.amounts?.overdue ?? 0)}
-            </p>
-            <span className="text-[11px] text-rose-700 font-bold mt-1 block">
-              {summary?.counts?.overdue ?? 0} payments overdue
-            </span>
-          </div>
-
-          <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
-            <div className="flex items-center justify-between text-slate-500 text-xs font-semibold">
-              <span>Verification Queue</span>
-              <ShieldCheck className="h-4 w-4 text-amber-500" />
-            </div>
-            <p className="text-2xl font-black text-amber-600 mt-2">
-              {summary?.counts?.verification ?? 0}
-            </p>
-            <span className="text-[11px] text-amber-700 font-medium mt-1 block">
-              Proofs awaiting sign-off
-            </span>
-          </div>
-        </div>
 
         {/* Section 1: ACTION REQUIRED (Primary operational triage) */}
         <section className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">

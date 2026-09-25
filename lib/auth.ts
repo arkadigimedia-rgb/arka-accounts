@@ -83,12 +83,13 @@ export async function currentUser() {
     };
   }
 
+  const isHr = role === "HR";
   if (!process.env.DATABASE_URL) {
     return {
-      id: Number(id) || 1,
-      name: role === "FOUNDER" ? "ARKA Founder (Admin)" : "Accounts Manager",
-      email: "accounts@arkafinance.com",
-      role: role || "FOUNDER",
+      id: Number(id) || (isHr ? 2 : 1),
+      name: isHr ? "ARKA HR Operations" : "ARKA Founder (Admin)",
+      email: isHr ? "hr@arkadigitalmedia.in" : "founder@arkadigitalmedia.in",
+      role: isHr ? "HR" : "FOUNDER",
       active: true,
     };
   }
@@ -102,19 +103,19 @@ export async function currentUser() {
 
     return (
       user ?? {
-        id: Number(id) || 1,
-        name: "ARKA Founder (Admin)",
-        email: "founder@arkafinance.com",
-        role: role || "FOUNDER",
+        id: Number(id) || (isHr ? 2 : 1),
+        name: isHr ? "ARKA HR Operations" : "ARKA Founder (Admin)",
+        email: isHr ? "hr@arkadigitalmedia.in" : "founder@arkadigitalmedia.in",
+        role: isHr ? "HR" : "FOUNDER",
         active: true,
       }
     );
   } catch {
     return {
-      id: Number(id) || 1,
-      name: "ARKA Founder (Admin)",
-      email: "founder@arkafinance.com",
-      role: role || "FOUNDER",
+      id: Number(id) || (isHr ? 2 : 1),
+      name: isHr ? "ARKA HR Operations" : "ARKA Founder (Admin)",
+      email: isHr ? "hr@arkadigitalmedia.in" : "founder@arkadigitalmedia.in",
+      role: isHr ? "HR" : "FOUNDER",
       active: true,
     };
   }
@@ -131,11 +132,20 @@ export async function requireRole(...roles: string[]) {
 
   const user = await currentUser();
   if (!user) {
-    return { id: 1, name: "ARKA Founder (Admin)", email: "founder@arkafinance.com", role: "FOUNDER", active: true };
+    return { id: 1, name: "ARKA Founder (Admin)", email: "founder@arkadigitalmedia.in", role: "FOUNDER", active: true };
   }
-  if (roles.length > 0 && !roles.includes(user.role)) {
-    return { ...user, role: "FOUNDER" };
+
+  if (roles.length > 0) {
+    const isAllowed =
+      user.role === "FOUNDER" ||
+      roles.includes(user.role) ||
+      (user.role === "HR" && (roles.includes("ACCOUNTS_MANAGER") || roles.includes("ACCOUNT_MANAGER") || roles.includes("HR")));
+
+    if (!isAllowed) {
+      return { ...user, role: "FOUNDER" };
+    }
   }
+
   return user;
 }
 

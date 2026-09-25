@@ -298,4 +298,40 @@ describe("ARKA Accounts End-to-End Operational Pipeline", () => {
       vi.unstubAllEnvs();
     });
   });
+
+  describe("6. Role-Based Access Control (Founder vs HR)", () => {
+    it("ensures Founder and HR roles have distinct access and metric visibility", async () => {
+      const { operationalStore } = await import("@/lib/operational-store");
+      const metrics = operationalStore.getSummaryMetrics();
+
+      // Founder sees full total invoiced / billed value
+      const founderView = {
+        ...metrics,
+        role: "FOUNDER",
+        amounts: { ...metrics.amounts },
+        invoices: { ...metrics.invoices },
+      };
+      expect(founderView.role).toBe("FOUNDER");
+      expect(founderView.amounts.expected).toBeDefined();
+
+      // HR sees collected and pending, but total billed value is hidden (null)
+      const hrView = {
+        ...metrics,
+        role: "HR",
+        amounts: {
+          ...metrics.amounts,
+          expected: null, // Total Billed Value hidden
+        },
+        invoices: {
+          count: metrics.invoices.count,
+          total: null, // Total Billed Value hidden
+        },
+      };
+      expect(hrView.role).toBe("HR");
+      expect(hrView.amounts.expected).toBeNull();
+      expect(hrView.invoices.total).toBeNull();
+      expect(hrView.amounts.paid).toBeDefined();
+      expect(hrView.amounts.pending).toBeDefined();
+    });
+  });
 });

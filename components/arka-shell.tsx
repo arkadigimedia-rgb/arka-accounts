@@ -5,14 +5,17 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   AlertCircle,
+  ArrowLeftRight,
   BarChart3,
   CalendarClock,
   CheckCircle2,
   Clock,
+  Crown,
   CreditCard,
   FileSpreadsheet,
   FileText,
   LayoutDashboard,
+  LogOut,
   Play,
   RefreshCw,
   Settings,
@@ -24,6 +27,7 @@ import {
 export function ArkaShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const [summary, setSummary] = useState<any>(null);
+  const [currentUser, setCurrentUser] = useState<{ id: number; name: string; email: string; role: string } | null>(null);
   const [syncing, setSyncing] = useState(false);
   const [automating, setAutomating] = useState(false);
   const [actionNotice, setActionNotice] = useState<string | null>(null);
@@ -32,16 +36,54 @@ export function ArkaShell({ children }: { children: React.ReactNode }) {
     fetch("/api/dashboard/summary")
       .then((r) => r.json() as Promise<any>)
       .then((data: any) => {
-        if (!data.error) setSummary(data);
+        if (!data.error) {
+          setSummary(data);
+          if (data.user) setCurrentUser(data.user);
+        }
+      })
+      .catch(() => {});
+  };
+
+  const fetchUser = () => {
+    fetch("/api/auth/me")
+      .then((r) => r.json() as Promise<any>)
+      .then((data: any) => {
+        if (!data.error && data.id) setCurrentUser(data);
       })
       .catch(() => {});
   };
 
   useEffect(() => {
     fetchSummary();
+    fetchUser();
     const interval = setInterval(fetchSummary, 30000);
     return () => clearInterval(interval);
   }, []);
+
+  const switchRole = async (targetRole: "FOUNDER" | "HR") => {
+    setActionNotice(`Switching to ${targetRole === "HR" ? "HR Operations Desk" : "Founder Portal"}...`);
+    try {
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ role: targetRole }),
+      });
+      if (res.ok) {
+        window.location.reload();
+      }
+    } catch {
+      window.location.reload();
+    }
+  };
+
+  const handleLogout = async () => {
+    try {
+      await fetch("/api/auth/logout", { method: "POST" });
+      window.location.href = "/login";
+    } catch {
+      window.location.href = "/login";
+    }
+  };
 
   const runSync = async () => {
     setSyncing(true);
@@ -168,6 +210,43 @@ export function ArkaShell({ children }: { children: React.ReactNode }) {
           })}
         </nav>
 
+        {/* User Card */}
+        <div className="p-3 rounded-2xl bg-slate-900 border border-slate-800 mb-4 space-y-2">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2.5 overflow-hidden">
+              <div
+                className={`h-7 w-7 rounded-lg flex items-center justify-center font-black text-xs shrink-0 ${
+                  currentUser?.role === "HR" ? "bg-purple-600 text-white" : "bg-amber-400 text-slate-950"
+                }`}
+              >
+                {currentUser?.role === "HR" ? "HR" : "F"}
+              </div>
+              <div className="overflow-hidden">
+                <p className="text-xs font-bold text-white truncate">{currentUser?.name || "ARKA Founder (Admin)"}</p>
+                <p className="text-[10px] text-slate-400 truncate">{currentUser?.email || "founder@arkadigitalmedia.in"}</p>
+              </div>
+            </div>
+          </div>
+          <div className="flex items-center justify-between pt-2 border-t border-slate-800/80 text-[11px]">
+            <span
+              className={`px-2 py-0.5 rounded-md font-extrabold text-[10px] ${
+                currentUser?.role === "HR"
+                  ? "bg-purple-950 text-purple-300 border border-purple-800"
+                  : "bg-amber-950 text-amber-300 border border-amber-800"
+              }`}
+            >
+              {currentUser?.role === "HR" ? "HR Desk" : "Founder"}
+            </span>
+            <button
+              onClick={() => switchRole(currentUser?.role === "HR" ? "FOUNDER" : "HR")}
+              className="text-amber-400 hover:text-amber-300 flex items-center gap-1 font-semibold text-[11px] transition"
+            >
+              <ArrowLeftRight className="h-3 w-3" />
+              <span>Switch</span>
+            </button>
+          </div>
+        </div>
+
         {/* System Summary Info */}
         <div className="mt-auto pt-6 border-t border-slate-900 text-[11px] text-slate-500 space-y-1">
           <p className="flex justify-between">
@@ -204,15 +283,44 @@ export function ArkaShell({ children }: { children: React.ReactNode }) {
             )}
           </div>
 
-          <div className="flex items-center gap-4 text-xs">
+          <div className="flex items-center gap-3 text-xs">
             {summary?.demoMode && (
               <span className="px-3 py-1 rounded-lg bg-amber-100 text-amber-900 font-bold border border-amber-300">
                 DEMO MODE
               </span>
             )}
-            <span className="text-slate-500 hidden sm:inline">
-              Today: <strong className="text-slate-800 font-mono">{new Date().toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata" })}</strong>
-            </span>
+
+            {/* Role Badge */}
+            {currentUser?.role === "HR" ? (
+              <span className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-purple-100 text-purple-900 border border-purple-300 font-extrabold text-xs">
+                <UserCheck className="h-3.5 w-3.5 text-purple-700" />
+                HR Operations
+              </span>
+            ) : (
+              <span className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-100 text-amber-950 border border-amber-300 font-extrabold text-xs">
+                <Crown className="h-3.5 w-3.5 text-amber-700" />
+                Founder Portal
+              </span>
+            )}
+
+            {/* Quick Switch Button */}
+            <button
+              onClick={() => switchRole(currentUser?.role === "HR" ? "FOUNDER" : "HR")}
+              className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-300 text-slate-800 font-bold text-xs transition"
+              title={`Switch account to ${currentUser?.role === "HR" ? "Founder" : "HR"}`}
+            >
+              <ArrowLeftRight className="h-3.5 w-3.5 text-slate-600" />
+              <span>Switch to {currentUser?.role === "HR" ? "Founder" : "HR"}</span>
+            </button>
+
+            {/* Logout */}
+            <button
+              onClick={handleLogout}
+              className="p-2 rounded-xl hover:bg-slate-100 text-slate-500 hover:text-rose-600 transition"
+              title="Logout"
+            >
+              <LogOut className="h-4 w-4" />
+            </button>
           </div>
         </header>
 

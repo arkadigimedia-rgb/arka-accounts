@@ -2,7 +2,7 @@ import { sql } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { getDb } from "@/db";
 import { invoices, payments } from "@/db/schema";
-import { requireRole } from "@/lib/auth";
+import { currentUser, requireRole } from "@/lib/auth";
 import { databaseNotConfiguredResponse, isDatabaseNotConfigured } from "@/lib/database-config";
 import { demoModeEnabled, demoPayments } from "@/lib/demo-mode";
 import { operationalStore } from "@/lib/operational-store";
@@ -35,12 +35,33 @@ export async function GET() {
     }
   }
 
+  const user = await currentUser();
+  const isHr = user?.role === "HR";
+
   if (!process.env.DATABASE_URL) {
-    return NextResponse.json(operationalStore.getSummaryMetrics());
+    const metrics = operationalStore.getSummaryMetrics();
+    return NextResponse.json({
+      ...metrics,
+      role: isHr ? "HR" : "FOUNDER",
+      user: {
+        id: user?.id ?? (isHr ? 2 : 1),
+        name: user?.name ?? (isHr ? "ARKA HR Operations" : "ARKA Founder (Admin)"),
+        email: user?.email ?? (isHr ? "hr@arkadigitalmedia.in" : "founder@arkadigitalmedia.in"),
+        role: isHr ? "HR" : "FOUNDER",
+      },
+      amounts: {
+        ...metrics.amounts,
+        expected: isHr ? null : metrics.amounts.expected,
+      },
+      invoices: {
+        count: metrics.invoices?.count ?? 0,
+        total: isHr ? null : metrics.invoices?.total ?? 0,
+      },
+    });
   }
 
   try {
-    await requireRole("FOUNDER", "ACCOUNTS_MANAGER", "ACCOUNT_MANAGER");
+    await requireRole("FOUNDER", "ACCOUNTS_MANAGER", "ACCOUNT_MANAGER", "HR");
     const db = getDb();
     const rows = await db
       .select({
@@ -80,14 +101,21 @@ export async function GET() {
           paid: byStatus.PAID?.count ?? 0,
         },
         amounts: {
-          expected,
+          expected: isHr ? null : expected,
           paid,
           pending: expected - paid,
           overdue: byStatus.OVERDUE?.amount ?? 0,
         },
         invoices: {
           count: Number(invSummary?.count ?? 0),
-          total: Number(invSummary?.total ?? 0),
+          total: isHr ? null : Number(invSummary?.total ?? 0),
+        },
+        role: isHr ? "HR" : "FOUNDER",
+        user: {
+          id: user?.id ?? (isHr ? 2 : 1),
+          name: user?.name ?? (isHr ? "ARKA HR Operations" : "ARKA Founder (Admin)"),
+          email: user?.email ?? (isHr ? "hr@arkadigitalmedia.in" : "founder@arkadigitalmedia.in"),
+          role: isHr ? "HR" : "FOUNDER",
         },
         demoMode: false,
         generatedAt: new Date().toISOString(),
@@ -95,9 +123,45 @@ export async function GET() {
     }
 
     // If database has 0 records, return operational store metrics (which are live from Google Sheet)
-    return NextResponse.json(operationalStore.getSummaryMetrics());
+    const storeMetrics = operationalStore.getSummaryMetrics();
+    return NextResponse.json({
+      ...storeMetrics,
+      role: isHr ? "HR" : "FOUNDER",
+      user: {
+        id: user?.id ?? (isHr ? 2 : 1),
+        name: user?.name ?? (isHr ? "ARKA HR Operations" : "ARKA Founder (Admin)"),
+        email: user?.email ?? (isHr ? "hr@arkadigitalmedia.in" : "founder@arkadigitalmedia.in"),
+        role: isHr ? "HR" : "FOUNDER",
+      },
+      amounts: {
+        ...storeMetrics.amounts,
+        expected: isHr ? null : storeMetrics.amounts.expected,
+      },
+      invoices: {
+        count: storeMetrics.invoices?.count ?? 0,
+        total: isHr ? null : storeMetrics.invoices?.total ?? 0,
+      },
+    });
   } catch (error) {
     // Graceful fallback to operational store metrics
-    return NextResponse.json(operationalStore.getSummaryMetrics());
+    const storeMetrics = operationalStore.getSummaryMetrics();
+    return NextResponse.json({
+      ...storeMetrics,
+      role: isHr ? "HR" : "FOUNDER",
+      user: {
+        id: user?.id ?? (isHr ? 2 : 1),
+        name: user?.name ?? (isHr ? "ARKA HR Operations" : "ARKA Founder (Admin)"),
+        email: user?.email ?? (isHr ? "hr@arkadigitalmedia.in" : "founder@arkadigitalmedia.in"),
+        role: isHr ? "HR" : "FOUNDER",
+      },
+      amounts: {
+        ...storeMetrics.amounts,
+        expected: isHr ? null : storeMetrics.amounts.expected,
+      },
+      invoices: {
+        count: storeMetrics.invoices?.count ?? 0,
+        total: isHr ? null : storeMetrics.invoices?.total ?? 0,
+      },
+    });
   }
 }
