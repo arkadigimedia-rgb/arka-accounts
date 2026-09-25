@@ -239,29 +239,29 @@ export default function InvoicesPage() {
           </div>
         )}
 
-        {/* Financial KPI Strip */}
+        {/* KPI Strip */}
         {isHr ? (
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-sm">
-              <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Collected</p>
-              <p className="mt-2 text-2xl lg:text-3xl font-black text-emerald-600">{rupees(kpis.paidAmount)}</p>
-              <p className="text-[11px] text-emerald-700/70 mt-1">
-                {invoices.filter((i) => i.status === "PAID").length} settled invoices
+              <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Settled Invoices</p>
+              <p className="mt-2 text-2xl lg:text-3xl font-black text-emerald-600">
+                {invoices.filter((i) => i.status === "PAID").length}
               </p>
+              <p className="text-[11px] text-emerald-700/70 mt-1">Confirmed client collections</p>
             </div>
             <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-sm">
-              <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Pending Due</p>
-              <p className="mt-2 text-2xl lg:text-3xl font-black text-amber-600">{rupees(kpis.pendingAmount)}</p>
-              <p className="text-[11px] text-slate-400 mt-1">
-                {invoices.filter((i) => ["DRAFT", "SENT"].includes(i.status)).length} active invoices
+              <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Pending Invoices</p>
+              <p className="mt-2 text-2xl lg:text-3xl font-black text-amber-600">
+                {invoices.filter((i) => ["DRAFT", "SENT"].includes(i.status)).length}
               </p>
+              <p className="text-[11px] text-slate-400 mt-1">Active client billing schedules</p>
             </div>
             <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-sm">
-              <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Overdue</p>
-              <p className="mt-2 text-2xl lg:text-3xl font-black text-rose-600">{rupees(kpis.overdueAmount)}</p>
-              <p className="text-[11px] text-rose-600/70 mt-1">
-                {invoices.filter((i) => i.status === "OVERDUE").length} delinquent invoices
+              <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Overdue Invoices</p>
+              <p className="mt-2 text-2xl lg:text-3xl font-black text-rose-600">
+                {invoices.filter((i) => i.status === "OVERDUE").length}
               </p>
+              <p className="text-[11px] text-rose-600/70 mt-1">Accounts past payment due date</p>
             </div>
           </div>
         ) : (

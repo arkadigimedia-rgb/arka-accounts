@@ -170,18 +170,26 @@ export default function PaymentsPage() {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-sm">
             <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
-              {isHr ? "Pending Collection" : "Total Receivables"}
+              {isHr ? "Pending Accounts" : "Total Receivables"}
             </p>
             <p className={`mt-2 text-2xl lg:text-3xl font-black ${isHr ? "text-amber-600" : "text-slate-900"}`}>
-              {rupees(isHr ? Math.max(0, kpis.totalExpected - kpis.totalCollected) : kpis.totalExpected)}
+              {isHr
+                ? payments.filter((p) => p.status !== "PAID" && p.status !== "REJECTED").length
+                : rupees(kpis.totalExpected)}
             </p>
             <p className="text-[11px] text-slate-400 mt-1">
-              {isHr ? "Pending client dues" : `${payments.length} scheduled payments`}
+              {isHr ? "Active client dues to recover" : `${payments.length} scheduled payments`}
             </p>
           </div>
           <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-sm">
-            <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Collected & Settled</p>
-            <p className="mt-2 text-2xl lg:text-3xl font-black text-emerald-600">{rupees(kpis.totalCollected)}</p>
+            <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+              {isHr ? "Settled Accounts" : "Collected & Settled"}
+            </p>
+            <p className="mt-2 text-2xl lg:text-3xl font-black text-emerald-600">
+              {isHr
+                ? payments.filter((p) => p.status === "PAID").length
+                : rupees(kpis.totalCollected)}
+            </p>
             <p className="text-[11px] text-emerald-700/70 mt-1">
               {payments.filter((p) => p.status === "PAID").length} verified transactions
             </p>

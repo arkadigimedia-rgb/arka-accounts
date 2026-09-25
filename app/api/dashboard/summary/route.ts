@@ -49,10 +49,16 @@ export async function GET() {
         email: user?.email ?? (isHr ? "hr@arkadigitalmedia.in" : "founder@arkadigitalmedia.in"),
         role: isHr ? "HR" : "FOUNDER",
       },
-      amounts: {
-        ...metrics.amounts,
-        expected: isHr ? null : metrics.amounts.expected,
-      },
+      amounts: isHr
+        ? {
+            expected: null,
+            paid: null,
+            pending: null,
+            overdue: null,
+          }
+        : {
+            ...metrics.amounts,
+          },
       invoices: {
         count: metrics.invoices?.count ?? 0,
         total: isHr ? null : metrics.invoices?.total ?? 0,
@@ -100,12 +106,19 @@ export async function GET() {
             (byStatus.MISMATCH?.count ?? 0),
           paid: byStatus.PAID?.count ?? 0,
         },
-        amounts: {
-          expected: isHr ? null : expected,
-          paid,
-          pending: expected - paid,
-          overdue: byStatus.OVERDUE?.amount ?? 0,
-        },
+        amounts: isHr
+          ? {
+              expected: null,
+              paid: null,
+              pending: null,
+              overdue: null,
+            }
+          : {
+              expected,
+              paid,
+              pending: expected - paid,
+              overdue: byStatus.OVERDUE?.amount ?? 0,
+            },
         invoices: {
           count: Number(invSummary?.count ?? 0),
           total: isHr ? null : Number(invSummary?.total ?? 0),
@@ -133,10 +146,16 @@ export async function GET() {
         email: user?.email ?? (isHr ? "hr@arkadigitalmedia.in" : "founder@arkadigitalmedia.in"),
         role: isHr ? "HR" : "FOUNDER",
       },
-      amounts: {
-        ...storeMetrics.amounts,
-        expected: isHr ? null : storeMetrics.amounts.expected,
-      },
+      amounts: isHr
+        ? {
+            expected: null,
+            paid: null,
+            pending: null,
+            overdue: null,
+          }
+        : {
+            ...storeMetrics.amounts,
+          },
       invoices: {
         count: storeMetrics.invoices?.count ?? 0,
         total: isHr ? null : storeMetrics.invoices?.total ?? 0,
@@ -154,10 +173,16 @@ export async function GET() {
         email: user?.email ?? (isHr ? "hr@arkadigitalmedia.in" : "founder@arkadigitalmedia.in"),
         role: isHr ? "HR" : "FOUNDER",
       },
-      amounts: {
-        ...storeMetrics.amounts,
-        expected: isHr ? null : storeMetrics.amounts.expected,
-      },
+      amounts: isHr
+        ? {
+            expected: null,
+            paid: null,
+            pending: null,
+            overdue: null,
+          }
+        : {
+            ...storeMetrics.amounts,
+          },
       invoices: {
         count: storeMetrics.invoices?.count ?? 0,
         total: isHr ? null : storeMetrics.invoices?.total ?? 0,

@@ -314,24 +314,26 @@ describe("ARKA Accounts End-to-End Operational Pipeline", () => {
       expect(founderView.role).toBe("FOUNDER");
       expect(founderView.amounts.expected).toBeDefined();
 
-      // HR sees collected and pending, but total billed value is hidden (null)
+      // HR sees operational counts, but company-wide aggregate amounts are strictly hidden (null)
       const hrView = {
         ...metrics,
         role: "HR",
         amounts: {
-          ...metrics.amounts,
-          expected: null, // Total Billed Value hidden
+          expected: null,
+          paid: null,
+          pending: null,
+          overdue: null,
         },
         invoices: {
           count: metrics.invoices.count,
-          total: null, // Total Billed Value hidden
+          total: null,
         },
       };
       expect(hrView.role).toBe("HR");
       expect(hrView.amounts.expected).toBeNull();
+      expect(hrView.amounts.paid).toBeNull();
+      expect(hrView.amounts.pending).toBeNull();
       expect(hrView.invoices.total).toBeNull();
-      expect(hrView.amounts.paid).toBeDefined();
-      expect(hrView.amounts.pending).toBeDefined();
     });
 
     it("strictly enforces password 123456 for login and rejects any invalid password", async () => {
@@ -346,7 +348,7 @@ describe("ARKA Accounts End-to-End Operational Pipeline", () => {
       const badRes = await POST(badReq);
       expect(badRes.status).toBe(401);
       const badData = (await badRes.json()) as any;
-      expect(badData.error).toContain("123456");
+      expect(badData.error).toContain("Invalid password");
 
       // Correct password attempt for Founder
       const founderReq = new Request("http://localhost/api/auth/login", {

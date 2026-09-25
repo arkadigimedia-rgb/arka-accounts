@@ -174,27 +174,27 @@ export default function ReportsPage() {
               </div>
             )}
 
-            {/* Top Financial KPI Strip */}
+            {/* Top Operational KPI Strip for HR vs Financial for Founder */}
             {isHr || data.summary.totalInvoiced === null ? (
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-sm">
-                  <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Total Collected</p>
-                  <p className="mt-2 text-3xl font-black text-emerald-600">{rupees(data.summary.totalCollected)}</p>
-                  <p className="text-[11px] text-emerald-700/70 mt-1">{data.summary.paidCount} payments settled</p>
+                  <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Settled Accounts</p>
+                  <p className="mt-2 text-3xl font-black text-emerald-600">{data.summary.paidCount}</p>
+                  <p className="text-[11px] text-emerald-700/70 mt-1">Confirmed client collections</p>
                 </div>
 
                 <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-sm">
-                  <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Total Outstanding</p>
-                  <p className="mt-2 text-3xl font-black text-amber-600">{rupees(data.summary.totalOutstanding)}</p>
-                  <p className="text-[11px] text-slate-400 mt-1">
-                    {data.summary.dueTodayCount + data.summary.overdueCount} active accounts pending
+                  <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Pending Accounts</p>
+                  <p className="mt-2 text-3xl font-black text-amber-600">
+                    {data.summary.dueTodayCount + data.summary.overdueCount}
                   </p>
+                  <p className="text-[11px] text-slate-400 mt-1">Active client accounts pending collection</p>
                 </div>
 
                 <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-sm">
                   <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Delinquent / Overdue</p>
-                  <p className="mt-2 text-3xl font-black text-rose-600">{rupees(data.summary.totalOverdue)}</p>
-                  <p className="text-[11px] text-rose-600/70 mt-1">{data.summary.overdueCount} accounts past due</p>
+                  <p className="mt-2 text-3xl font-black text-rose-600">{data.summary.overdueCount}</p>
+                  <p className="text-[11px] text-rose-600/70 mt-1">Accounts past payment due date</p>
                 </div>
               </div>
             ) : (

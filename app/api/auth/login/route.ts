@@ -19,7 +19,7 @@ export async function POST(request: Request) {
     // Strictly enforce password 123456 as requested
     if (password !== "123456") {
       return NextResponse.json(
-        { error: "Invalid password. The access password is 123456." },
+        { error: "Invalid password. Please check your credentials and try again." },
         { status: 401 }
       );
     }

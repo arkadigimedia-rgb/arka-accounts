@@ -13,9 +13,11 @@ import {
   FileCheck,
   FileSpreadsheet,
   FileText,
+  Filter,
   IndianRupee,
   PlusCircle,
   RefreshCw,
+  Search,
   Send,
   ShieldCheck,
   UserCheck,
@@ -36,6 +38,18 @@ type ActionItem = {
   context: string;
 };
 
+type PendingPaymentItem = {
+  id: number;
+  clientId: number | null;
+  client: string;
+  service: string;
+  expectedAmount: number;
+  paidAmount: number | null;
+  dueDate: string;
+  status: string;
+  sourceReference?: string | null;
+};
+
 type SummaryData = {
   counts: {
     dueToday: number;
@@ -46,9 +60,9 @@ type SummaryData = {
   };
   amounts: {
     expected: number | null;
-    paid: number;
-    pending: number;
-    overdue: number;
+    paid: number | null;
+    pending: number | null;
+    overdue: number | null;
   };
   invoices: {
     count: number;
@@ -71,6 +85,9 @@ export default function ActionCenterPage() {
   const { isHr: authIsHr } = useAuth();
   const [summary, setSummary] = useState<SummaryData | null>(null);
   const [actions, setActions] = useState<ActionItem[]>([]);
+  const [pendingPayments, setPendingPayments] = useState<PendingPaymentItem[]>([]);
+  const [clientSearch, setClientSearch] = useState("");
+  const [clientStatusFilter, setClientStatusFilter] = useState("ALL");
   const [loading, setLoading] = useState(true);
   const [selectedPaymentForFollowUp, setSelectedPaymentForFollowUp] = useState<ActionItem | null>(null);
   const [followUpAction, setFollowUpAction] = useState("Phone Call");
@@ -88,13 +105,20 @@ export default function ActionCenterPage() {
   const loadData = async () => {
     setLoading(true);
     try {
-      const [sumRes, actRes] = await Promise.all([
+      const [sumRes, actRes, payRes] = await Promise.all([
         fetch("/api/dashboard/summary").then((r) => r.json() as Promise<any>),
         fetch("/api/action-intelligence").then((r) => r.json() as Promise<any>),
+        fetch("/api/payments").then((r) => r.json() as Promise<any>),
       ]);
 
       if (!sumRes.error) setSummary(sumRes);
       if (actRes.actions) setActions(actRes.actions);
+      if (Array.isArray(payRes)) {
+        const pending = payRes.filter(
+          (p: any) => p.status !== "PAID" && p.status !== "REJECTED"
+        );
+        setPendingPayments(pending);
+      }
     } catch {
       setStatusMessage("Failed to load live data.");
     } finally {
@@ -160,6 +184,19 @@ export default function ActionCenterPage() {
   const dueTodayItems = actions.filter((a) => a.type === "PAYMENT_DUE");
   const reminderItems = actions.filter((a) => a.type === "REMINDER_REQUIRED");
 
+  const filteredPendingPayments = pendingPayments.filter((p) => {
+    const matchesSearch =
+      clientSearch === "" ||
+      p.client.toLowerCase().includes(clientSearch.toLowerCase()) ||
+      p.service.toLowerCase().includes(clientSearch.toLowerCase());
+    const matchesFilter =
+      clientStatusFilter === "ALL" ||
+      (clientStatusFilter === "OVERDUE" && p.status === "OVERDUE") ||
+      (clientStatusFilter === "DUE_TODAY" && p.status === "DUE_TODAY") ||
+      (clientStatusFilter === "UPCOMING" && p.status === "UPCOMING");
+    return matchesSearch && matchesFilter;
+  });
+
   const isHr = authIsHr || summary?.role === "HR" || summary?.amounts?.expected === null;
 
   return (
@@ -185,7 +222,7 @@ export default function ActionCenterPage() {
             <h2 className="text-2xl sm:text-3xl font-black mt-1">What needs attention today?</h2>
             <p className="text-xs sm:text-sm text-slate-300 mt-1.5 max-w-2xl leading-relaxed">
               {isHr
-                ? "HR & Operations Desk: Monitor confirmed collections, track pending client dues, and trigger operational follow-ups."
+                ? "HR & Operations Desk: Monitor confirmed collections, track client-wise pending dues, and trigger operational follow-ups."
                 : "Real-time enterprise dashboard for client payment tracking, billing invoices, verification, and automated collection."}
             </p>
           </div>
@@ -218,55 +255,69 @@ export default function ActionCenterPage() {
           </div>
         )}
 
-        {/* Financial KPI Summary Cards */}
+        {/* Operational KPI Summary Cards */}
         {isHr ? (
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <span className="text-[11px] font-bold text-purple-700 bg-purple-50 border border-purple-200 px-3 py-1 rounded-full inline-flex items-center gap-1.5">
                 <UserCheck className="h-3.5 w-3.5 text-purple-700" />
-                HR Operations View · Collection & Pending Dues Status
+                HR Operations View · Client Accounts Tracking (No Aggregate Financial Totals)
               </span>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              {/* 1. Total Collected */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+              {/* 1. Pending Accounts */}
               <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
                 <div className="flex items-center justify-between text-slate-500 text-xs font-semibold">
-                  <span className="text-emerald-800 font-bold">Total Collected</span>
-                  <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-                </div>
-                <p className="text-3xl font-black text-emerald-700 mt-2">
-                  {formatINR(summary?.amounts?.paid ?? 0)}
-                </p>
-                <span className="text-[11px] text-emerald-700 font-medium mt-1 block">
-                  {summary?.counts?.paid ?? 0} confirmed client payments
-                </span>
-              </div>
-
-              {/* 2. Pending Collection */}
-              <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
-                <div className="flex items-center justify-between text-slate-500 text-xs font-semibold">
-                  <span className="text-amber-800 font-bold">Pending Collection</span>
+                  <span className="text-amber-800 font-bold">Pending Accounts</span>
                   <Clock className="h-4 w-4 text-amber-600" />
                 </div>
-                <p className="text-3xl font-black text-amber-700 mt-2">
-                  {formatINR(summary?.amounts?.pending ?? 0)}
+                <p className="text-2xl sm:text-3xl font-black text-amber-600 mt-2">
+                  {(summary?.counts?.dueToday ?? 0) + (summary?.counts?.upcoming ?? 0)}
                 </p>
                 <span className="text-[11px] text-amber-700 font-medium mt-1 block">
-                  {(summary?.counts?.dueToday ?? 0) + (summary?.counts?.upcoming ?? 0)} upcoming / due accounts
+                  Active client dues to recover
                 </span>
               </div>
 
-              {/* 3. Overdue Dues */}
+              {/* 2. Settled Accounts */}
               <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
                 <div className="flex items-center justify-between text-slate-500 text-xs font-semibold">
-                  <span className="text-rose-800 font-bold">Overdue Dues</span>
+                  <span className="text-emerald-800 font-bold">Settled Accounts</span>
+                  <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                </div>
+                <p className="text-2xl sm:text-3xl font-black text-emerald-600 mt-2">
+                  {summary?.counts?.paid ?? 0}
+                </p>
+                <span className="text-[11px] text-emerald-700 font-medium mt-1 block">
+                  Client collections confirmed
+                </span>
+              </div>
+
+              {/* 3. Overdue Follow-ups */}
+              <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+                <div className="flex items-center justify-between text-slate-500 text-xs font-semibold">
+                  <span className="text-rose-800 font-bold">Overdue Accounts</span>
                   <AlertTriangle className="h-4 w-4 text-rose-600" />
                 </div>
-                <p className="text-3xl font-black text-rose-700 mt-2">
-                  {formatINR(summary?.amounts?.overdue ?? 0)}
+                <p className="text-2xl sm:text-3xl font-black text-rose-600 mt-2">
+                  {summary?.counts?.overdue ?? 0}
                 </p>
-                <span className="text-[11px] text-rose-700 font-bold mt-1 block">
-                  {summary?.counts?.overdue ?? 0} accounts requiring follow-up
+                <span className="text-[11px] text-rose-700 font-medium mt-1 block">
+                  Past due date follow-ups
+                </span>
+              </div>
+
+              {/* 4. Verification Queue */}
+              <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+                <div className="flex items-center justify-between text-slate-500 text-xs font-semibold">
+                  <span className="text-purple-800 font-bold">Verification Queue</span>
+                  <ShieldCheck className="h-4 w-4 text-purple-600" />
+                </div>
+                <p className="text-2xl sm:text-3xl font-black text-purple-600 mt-2">
+                  {summary?.counts?.verification ?? 0}
+                </p>
+                <span className="text-[11px] text-purple-700 font-medium mt-1 block">
+                  Proofs awaiting audit review
                 </span>
               </div>
             </div>
@@ -338,6 +389,146 @@ export default function ActionCenterPage() {
             </div>
           </div>
         )}
+
+        {/* Client-Wise Pending Collections Desk (Client-wise tracking with NO aggregate total) */}
+        <section className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
+          <div className="p-6 border-b border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold uppercase tracking-widest text-amber-700">Client-Wise Operations</span>
+                <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-purple-50 text-purple-700 border border-purple-200">
+                  Individual Accounts · No Company Total
+                </span>
+              </div>
+              <h3 className="text-lg font-black text-slate-900 mt-1">
+                Pending Collections & Due Accounts (Client-Wise)
+              </h3>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Client-by-client collection schedule. All dues listed individually per client with no aggregate total.
+              </p>
+            </div>
+
+            {/* Search & Filter Controls */}
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="relative w-full sm:w-64">
+                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder="Search client or service..."
+                  value={clientSearch}
+                  onChange={(e) => setClientSearch(e.target.value)}
+                  className="w-full pl-9 pr-4 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-950 focus:bg-white transition"
+                />
+              </div>
+
+              <div className="flex items-center gap-2">
+                <Filter className="h-4 w-4 text-slate-400" />
+                <select
+                  value={clientStatusFilter}
+                  onChange={(e) => setClientStatusFilter(e.target.value)}
+                  className="px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-950 transition font-medium"
+                >
+                  <option value="ALL">All Pending Clients ({pendingPayments.length})</option>
+                  <option value="UPCOMING">Upcoming ({pendingPayments.filter((p) => p.status === "UPCOMING").length})</option>
+                  <option value="DUE_TODAY">Due Today ({pendingPayments.filter((p) => p.status === "DUE_TODAY").length})</option>
+                  <option value="OVERDUE">Overdue ({pendingPayments.filter((p) => p.status === "OVERDUE").length})</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          {filteredPendingPayments.length === 0 ? (
+            <div className="p-12 text-center text-slate-500 text-xs">
+              <CheckCircle2 className="h-8 w-8 text-emerald-500 mx-auto mb-2 opacity-80" />
+              {pendingPayments.length === 0 ? "No pending payments in ledger." : "No matching clients found for your search."}
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead className="bg-slate-50 text-[11px] font-bold uppercase tracking-wider text-slate-500 border-b border-slate-100">
+                  <tr>
+                    <th className="px-6 py-3.5">Client Name</th>
+                    <th className="px-6 py-3.5">Service / Scope</th>
+                    <th className="px-6 py-3.5">Due Date</th>
+                    <th className="px-6 py-3.5">Client Pending (₹)</th>
+                    <th className="px-6 py-3.5">Status</th>
+                    <th className="px-6 py-3.5 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {filteredPendingPayments.map((p) => {
+                    const isOverdue = p.status === "OVERDUE";
+                    const isDueToday = p.status === "DUE_TODAY";
+                    return (
+                      <tr key={p.id} className="hover:bg-slate-50/80 transition">
+                        <td className="px-6 py-4 font-bold text-slate-900">
+                          {p.clientId ? (
+                            <Link href={`/clients/${p.clientId}`} className="hover:text-amber-600 transition">
+                              {p.client}
+                            </Link>
+                          ) : (
+                            <span>{p.client}</span>
+                          )}
+                        </td>
+                        <td className="px-6 py-4 text-slate-600">{p.service}</td>
+                        <td className="px-6 py-4 font-mono font-medium text-slate-700">{p.dueDate}</td>
+                        <td className="px-6 py-4 font-black text-slate-900">
+                          {formatINR(p.expectedAmount)}
+                        </td>
+                        <td className="px-6 py-4">
+                          <span
+                            className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                              isOverdue
+                                ? "bg-rose-100 text-rose-800"
+                                : isDueToday
+                                ? "bg-amber-100 text-amber-800"
+                                : "bg-blue-50 text-blue-700"
+                            }`}
+                          >
+                            {isOverdue ? "Overdue" : isDueToday ? "Due Today" : "Upcoming"}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 text-right">
+                          <div className="flex items-center justify-end gap-2">
+                            <button
+                              onClick={() =>
+                                setSelectedPaymentForFollowUp({
+                                  id: `pending-${p.id}`,
+                                  type: isOverdue ? "PAYMENT_OVERDUE" : "PAYMENT_DUE",
+                                  paymentId: p.id,
+                                  client: p.client,
+                                  service: p.service,
+                                  amount: p.expectedAmount,
+                                  dueDate: p.dueDate,
+                                  paymentStatus: p.status,
+                                  nextAction: "Log Follow-Up",
+                                  reason: `Payment pending for ${p.client}`,
+                                  recommendedAction: "Log Follow-Up",
+                                  context: p.status,
+                                })
+                              }
+                              className="px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-white font-bold text-[11px] inline-flex items-center gap-1 transition"
+                            >
+                              <UserCheck className="h-3 w-3 text-amber-400" />
+                              Follow Up
+                            </button>
+                            <Link
+                              href={`/payments/${p.id}`}
+                              className="p-1.5 rounded-lg border border-slate-200 text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition"
+                              title="View Payment Detail"
+                            >
+                              <ArrowRight className="h-3.5 w-3.5" />
+                            </Link>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </section>
 
         {/* Section 1: ACTION REQUIRED (Primary operational triage) */}
         <section className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
