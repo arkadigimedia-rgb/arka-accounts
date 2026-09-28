@@ -51,3 +51,30 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
     return NextResponse.json({ error: "Invoice not found." }, { status: 404 });
   }
 }
+
+export async function PATCH(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const id = Number((await params).id);
+    const body = await request.json();
+
+    const updated = operationalStore.updateInvoice(id, body);
+    if (!updated) {
+      return NextResponse.json({ error: "Invoice not found." }, { status: 404 });
+    }
+
+    return NextResponse.json({ success: true, invoice: updated });
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : "Failed to update invoice";
+    return NextResponse.json({ error: msg }, { status: 500 });
+  }
+}
+
+export async function PUT(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  return PATCH(request, { params });
+}

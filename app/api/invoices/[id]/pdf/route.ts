@@ -65,8 +65,8 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
         gstNumber: client?.gstNumber,
       },
       service: {
-        name: inv.service,
-        description: "Monthly Accounts & Operations Retainer",
+        name: inv.service || "Digital Marketing Service / Google and Meta Ads",
+        description: "Digital Marketing Service / Google and Meta Ads",
       },
       subtotal: inv.subtotal,
       taxAmount: inv.taxAmount,
@@ -104,8 +104,8 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
           gstNumber: client?.gstNumber,
         },
         service: {
-          name: inv.service,
-          description: "Monthly Accounts & Operations Retainer",
+          name: inv.service || "Digital Marketing Service / Google and Meta Ads",
+          description: "Digital Marketing Service / Google and Meta Ads",
         },
         subtotal: inv.subtotal,
         taxAmount: inv.taxAmount,

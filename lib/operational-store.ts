@@ -328,12 +328,12 @@ export class OperationalStore {
           contactPerson: "Accounts Lead",
           email: email,
           phone: contact,
-          address: "Bengaluru, Karnataka",
-          city: "Bengaluru",
+          address: "Hosakote, Bengaluru, Karnataka",
+          city: "Hosakote",
           state: "Karnataka",
           gstNumber: `29AAACN${String(1000 + newClientId)}A1Z0`,
-          service: "Retainer Operations",
-          serviceDescription: "Monthly Retainer Operations",
+          service: "Digital Marketing Service / Google and Meta Ads",
+          serviceDescription: "Digital Marketing Service / Google and Meta Ads",
           monthlyFee: amount,
           invoiceDay: invDay,
           paymentTermsDays: termsDays,
@@ -539,11 +539,11 @@ export class OperationalStore {
       email: data.email || "",
       phone: data.phone || "",
       address: data.address || "",
-      city: data.city || "Bengaluru",
+      city: data.city || "Hosakote",
       state: data.state || "Karnataka",
       gstNumber: data.gstNumber || "",
-      service: data.service || "Retainer Operations",
-      serviceDescription: data.serviceDescription || "Monthly Operations",
+      service: data.service || "Digital Marketing Service / Google and Meta Ads",
+      serviceDescription: data.serviceDescription || "Digital Marketing Service / Google and Meta Ads",
       monthlyFee: Number(data.monthlyFee) || 50000,
       invoiceDay: 1,
       paymentTermsDays: 5,
@@ -598,6 +598,10 @@ export class OperationalStore {
     return { payment, client, invoice, followUps };
   }
 
+  getPaymentByInvoiceId(invoiceId: number): OperationalPayment | null {
+    return this.payments.find((p) => p.invoiceId === invoiceId) || null;
+  }
+
   updatePaymentStatus(id: number, status: OperationalPayment["status"], actorId: number, note?: string) {
     const payment = this.payments.find((p) => p.id === id);
     if (!payment) throw new Error("PAYMENT_NOT_FOUND");
@@ -645,6 +649,397 @@ export class OperationalStore {
     const client = this.clients.find((c) => c.id === invoice.clientId);
     const payment = this.payments.find((p) => p.invoiceId === id);
     return { invoice, client, payment };
+  }
+
+  createCustomInvoice(data: {
+    invoiceNumber?: string;
+    clientId?: number | null;
+    clientName: string;
+    companyName?: string;
+    contactPerson?: string;
+    phone?: string;
+    email?: string;
+    address?: string;
+    city?: string;
+    state?: string;
+    gstNumber?: string;
+    service?: string;
+    serviceDescription?: string;
+    subtotal: number;
+    taxAmount?: number;
+    totalAmount?: number;
+    issueDate?: string;
+    dueDate?: string;
+    billingPeriodStart?: string;
+    billingPeriodEnd?: string;
+    status?: "GENERATED" | "SENT" | "OVERDUE" | "PAID";
+    paymentInstructions?: {
+      accountNumber?: string;
+      accountName?: string;
+      ifsc?: string;
+      bankName?: string;
+    };
+  }): { invoice: OperationalInvoice; client: OperationalClient; payment: OperationalPayment } {
+    const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata" }).format(new Date());
+    const issueDate = data.issueDate || today;
+
+    const computeAddDays = (dateStr: string, days: number) => {
+      const d = new Date(`${dateStr}T00:00:00Z`);
+      d.setUTCDate(d.getUTCDate() + days);
+      return d.toISOString().slice(0, 10);
+    };
+
+    const dueDate = data.dueDate || computeAddDays(issueDate, 7);
+
+    // Find or create client
+    let client = data.clientId
+      ? this.clients.find((c) => c.id === data.clientId)
+      : this.clients.find(
+          (c) =>
+            c.name.toLowerCase() === data.clientName.toLowerCase() ||
+            (data.companyName && c.companyName.toLowerCase() === data.companyName.toLowerCase())
+        );
+
+    const subtotal = Number(data.subtotal) || 0;
+    const taxAmount = Number(data.taxAmount) || 0;
+    const totalAmount = data.totalAmount != null ? Number(data.totalAmount) : subtotal + taxAmount;
+    const serviceName = data.service || "Digital Marketing Service / Google and Meta Ads";
+
+    if (!client) {
+      const newId = this.clients.length + 1;
+      client = {
+        id: newId,
+        clientCode: `CLI-${newId}`,
+        name: data.clientName,
+        companyName: data.companyName || data.clientName,
+        contactPerson: data.contactPerson || "",
+        email: data.email || "",
+        phone: data.phone || "",
+        address: data.address || "Hosakote, Bengaluru, Karnataka",
+        city: data.city || "Hosakote",
+        state: data.state || "Karnataka",
+        gstNumber: data.gstNumber || "",
+        service: serviceName,
+        serviceDescription: data.serviceDescription || "Digital Marketing Service / Google and Meta Ads",
+        monthlyFee: totalAmount,
+        invoiceDay: Number(issueDate.split("-")[2]) || 1,
+        paymentTermsDays: 7,
+        status: "ACTIVE",
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+      this.clients.unshift(client);
+    } else {
+      if (data.companyName) client.companyName = data.companyName;
+      if (data.contactPerson) client.contactPerson = data.contactPerson;
+      if (data.phone) client.phone = data.phone;
+      if (data.address) client.address = data.address;
+      if (data.city) client.city = data.city;
+      if (data.state) client.state = data.state;
+      if (data.gstNumber) client.gstNumber = data.gstNumber;
+      client.service = serviceName;
+      client.monthlyFee = totalAmount;
+      client.updatedAt = new Date().toISOString();
+    }
+
+    const nextId = this.invoices.length + 1;
+    const year = new Date().getFullYear();
+    const invoiceNumber =
+      data.invoiceNumber?.trim() ||
+      `INV-${year}-${String(nextId).padStart(4, "0")}`;
+
+    const newInvoice: OperationalInvoice = {
+      id: nextId,
+      invoiceNumber,
+      clientId: client.id,
+      clientName: client.name,
+      clientCode: client.clientCode,
+      service: serviceName,
+      issueDate,
+      dueDate,
+      billingPeriodStart: data.billingPeriodStart || `${issueDate.slice(0, 7)}-01`,
+      billingPeriodEnd: data.billingPeriodEnd || `${issueDate.slice(0, 7)}-28`,
+      subtotal,
+      taxAmount,
+      totalAmount,
+      currency: "INR",
+      status: data.status || (dueDate < today ? "OVERDUE" : "GENERATED"),
+      pdfStorageKey: `invoices/${nextId}/${invoiceNumber.replace(/[^a-zA-Z0-9_-]/g, "_")}.pdf`,
+      paidAt: data.status === "PAID" ? new Date().toISOString() : null,
+      createdAt: new Date().toISOString(),
+    };
+    this.invoices.unshift(newInvoice);
+
+    // Create or link payment in ledger
+    const payId = this.payments.length + 1;
+    const paymentStatus =
+      data.status === "PAID" ? "PAID" : dueDate < today ? "OVERDUE" : "UPCOMING";
+
+    const payment: OperationalPayment = {
+      id: payId,
+      invoiceId: newInvoice.id,
+      clientId: client.id,
+      client: client.companyName || client.name,
+      service: serviceName,
+      owner: "Finance Team",
+      billingFrom: newInvoice.billingPeriodStart,
+      billingTo: newInvoice.billingPeriodEnd,
+      expectedAmount: totalAmount,
+      paidAmount: data.status === "PAID" ? totalAmount : null,
+      dueDate,
+      status: paymentStatus,
+      utr: null,
+      paymentMode: null,
+      sourceReference: invoiceNumber,
+      notes: "Custom invoice created via Operations desk",
+      paidAt: data.status === "PAID" ? new Date().toISOString() : null,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+    this.payments.unshift(payment);
+
+    return { invoice: newInvoice, client, payment };
+  }
+
+  updateInvoice(
+    id: number,
+    data: {
+      invoiceNumber?: string;
+      clientName?: string;
+      companyName?: string;
+      contactPerson?: string;
+      phone?: string;
+      email?: string;
+      address?: string;
+      city?: string;
+      state?: string;
+      gstNumber?: string;
+      service?: string;
+      serviceDescription?: string;
+      subtotal?: number;
+      taxAmount?: number;
+      totalAmount?: number;
+      issueDate?: string;
+      dueDate?: string;
+      billingPeriodStart?: string;
+      billingPeriodEnd?: string;
+      status?: "GENERATED" | "SENT" | "OVERDUE" | "PAID";
+    }
+  ): OperationalInvoice | null {
+    const invoice = this.invoices.find((i) => i.id === id);
+    if (!invoice) return null;
+
+    if (data.invoiceNumber) invoice.invoiceNumber = data.invoiceNumber;
+    if (data.issueDate) invoice.issueDate = data.issueDate;
+    if (data.dueDate) invoice.dueDate = data.dueDate;
+    if (data.billingPeriodStart) invoice.billingPeriodStart = data.billingPeriodStart;
+    if (data.billingPeriodEnd) invoice.billingPeriodEnd = data.billingPeriodEnd;
+    if (data.service) invoice.service = data.service;
+    if (data.status) invoice.status = data.status;
+
+    if (data.subtotal !== undefined) invoice.subtotal = Number(data.subtotal);
+    if (data.taxAmount !== undefined) invoice.taxAmount = Number(data.taxAmount);
+    if (data.totalAmount !== undefined) {
+      invoice.totalAmount = Number(data.totalAmount);
+    } else if (data.subtotal !== undefined) {
+      invoice.totalAmount = invoice.subtotal + invoice.taxAmount;
+    }
+
+    // Update client if found
+    const client = this.clients.find((c) => c.id === invoice.clientId);
+    if (client) {
+      if (data.clientName) {
+        client.name = data.clientName;
+        invoice.clientName = data.clientName;
+      }
+      if (data.companyName) client.companyName = data.companyName;
+      if (data.contactPerson) client.contactPerson = data.contactPerson;
+      if (data.phone) client.phone = data.phone;
+      if (data.address) client.address = data.address;
+      if (data.city) client.city = data.city;
+      if (data.state) client.state = data.state;
+      if (data.gstNumber) client.gstNumber = data.gstNumber;
+      if (data.service) client.service = data.service;
+      client.monthlyFee = invoice.totalAmount;
+      client.updatedAt = new Date().toISOString();
+    }
+
+    // Synchronize corresponding payment record
+    const payment = this.payments.find((p) => p.invoiceId === id);
+    if (payment) {
+      payment.expectedAmount = invoice.totalAmount;
+      payment.dueDate = invoice.dueDate;
+      payment.service = invoice.service;
+      if (client) payment.client = client.companyName || client.name;
+      if (data.status === "PAID") {
+        payment.status = "PAID";
+        payment.paidAmount = invoice.totalAmount;
+        payment.paidAt = new Date().toISOString();
+      }
+      payment.updatedAt = new Date().toISOString();
+    }
+
+    return invoice;
+  }
+
+  updateBillingSchedule(
+    id: number,
+    data: Partial<OperationalBillingSchedule>
+  ): OperationalBillingSchedule | null {
+    const schedule = this.schedules.find((s) => s.id === id);
+    if (!schedule) return null;
+
+    if (data.billingFrequency) schedule.billingFrequency = data.billingFrequency;
+    if (data.amount !== undefined) {
+      schedule.amount = Number(data.amount);
+      schedule.expectedAmount = Number(data.amount);
+    }
+    if (data.expectedAmount !== undefined) schedule.expectedAmount = Number(data.expectedAmount);
+    if (data.invoiceGenerationDay !== undefined) schedule.invoiceGenerationDay = Number(data.invoiceGenerationDay);
+    if (data.paymentTermsDays !== undefined) schedule.paymentTermsDays = Number(data.paymentTermsDays);
+    if (data.nextInvoiceDate) schedule.nextInvoiceDate = data.nextInvoiceDate;
+    if (data.nextDueDate) schedule.nextDueDate = data.nextDueDate;
+    if (data.status) schedule.status = data.status;
+    if (data.service) schedule.service = data.service;
+
+    // Synchronize client monthly fee
+    const client = this.clients.find((c) => c.id === schedule.clientId);
+    if (client) {
+      if (data.amount !== undefined) client.monthlyFee = Number(data.amount);
+      if (data.service) client.service = data.service;
+      if (data.invoiceGenerationDay !== undefined) client.invoiceDay = Number(data.invoiceGenerationDay);
+      if (data.paymentTermsDays !== undefined) client.paymentTermsDays = Number(data.paymentTermsDays);
+      client.updatedAt = new Date().toISOString();
+    }
+
+    // Synchronize pending payments for this client
+    const pendingPayment = this.payments.find(
+      (p) => p.clientId === schedule.clientId && p.status !== "PAID" && p.status !== "REJECTED"
+    );
+    if (pendingPayment && data.amount !== undefined) {
+      pendingPayment.expectedAmount = Number(data.amount);
+      if (data.nextDueDate) pendingPayment.dueDate = data.nextDueDate;
+      pendingPayment.updatedAt = new Date().toISOString();
+    }
+
+    return schedule;
+  }
+
+  importBillingRows(
+    rows: Array<Record<string, any>>
+  ): { processed: number; updated: number; created: number } {
+    let processed = 0;
+    let updated = 0;
+    let created = 0;
+
+    for (const r of rows) {
+      const normalizedKeys = Object.fromEntries(
+        Object.entries(r).map(([k, v]) => [k.toLowerCase().replace(/[^a-z0-9]/g, ""), String(v ?? "").trim()])
+      );
+
+      const clientName =
+        normalizedKeys["clientsname"] ||
+        normalizedKeys["clientname"] ||
+        normalizedKeys["client"] ||
+        normalizedKeys["name"] ||
+        "";
+      if (!clientName) continue;
+      processed++;
+
+      const billingCycle = normalizedKeys["billingcycle"] || normalizedKeys["frequency"] || "Monthly";
+      const rawAmount = (normalizedKeys["amountpayable"] || normalizedKeys["amount"] || normalizedKeys["monthlyfee"] || "0").replace(/[₹,\s]/g, "");
+      const amount = Number(rawAmount) || 0;
+      const rawDueDate = normalizedKeys["invoiceduedate"] || normalizedKeys["duedate"] || "";
+      const rawInvDate = normalizedKeys["invoicedate"] || normalizedKeys["date"] || "";
+      const phone = normalizedKeys["phone"] || normalizedKeys["contact"] || "";
+      const service = normalizedKeys["service"] || normalizedKeys["productservice"] || "Digital Marketing Service / Google and Meta Ads";
+
+      let client = this.clients.find(
+        (c) => c.name.toLowerCase() === clientName.toLowerCase() || c.companyName.toLowerCase() === clientName.toLowerCase()
+      );
+
+      if (!client) {
+        const newId = this.clients.length + 1;
+        client = {
+          id: newId,
+          clientCode: `CLI-${newId}`,
+          name: clientName,
+          companyName: clientName,
+          contactPerson: "",
+          email: "",
+          phone,
+          address: "Hosakote, Bengaluru, Karnataka",
+          city: "Hosakote",
+          state: "Karnataka",
+          gstNumber: "",
+          service,
+          serviceDescription: service,
+          monthlyFee: amount,
+          invoiceDay: 1,
+          paymentTermsDays: 7,
+          status: "ACTIVE",
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        };
+        this.clients.push(client);
+        created++;
+      } else {
+        if (amount > 0) client.monthlyFee = amount;
+        if (service) client.service = service;
+        if (phone) client.phone = phone;
+        client.updatedAt = new Date().toISOString();
+        updated++;
+      }
+
+      // Update or create schedule
+      let schedule = this.schedules.find((s) => s.clientId === client!.id);
+      const freq: "MONTHLY" | "QUARTERLY" = billingCycle.toUpperCase().includes("QUART") ? "QUARTERLY" : "MONTHLY";
+
+      if (schedule) {
+        schedule.billingFrequency = freq;
+        if (amount > 0) {
+          schedule.amount = amount;
+          schedule.expectedAmount = amount;
+        }
+        if (rawInvDate) schedule.nextInvoiceDate = rawInvDate;
+        if (rawDueDate) schedule.nextDueDate = rawDueDate;
+        schedule.service = service;
+      } else {
+        const schedId = this.schedules.length + 1;
+        this.schedules.push({
+          id: schedId,
+          clientId: client.id,
+          clientName: client.name,
+          service,
+          billingType: "RECURRING",
+          billingFrequency: freq,
+          amount,
+          expectedAmount: amount,
+          currency: "INR",
+          invoiceGenerationDay: 1,
+          paymentTermsDays: 7,
+          autoGenerateInvoice: true,
+          autoSendInvoice: true,
+          nextInvoiceDate: rawInvDate || new Date().toISOString().slice(0, 10),
+          nextDueDate: rawDueDate || new Date().toISOString().slice(0, 10),
+          status: "ACTIVE",
+          createdAt: new Date().toISOString(),
+        });
+      }
+
+      // Synchronize pending payment if amount changed
+      const pendingPayment = this.payments.find(
+        (p) => p.clientId === client!.id && p.status !== "PAID" && p.status !== "REJECTED"
+      );
+      if (pendingPayment) {
+        if (amount > 0) pendingPayment.expectedAmount = amount;
+        if (rawDueDate) pendingPayment.dueDate = rawDueDate;
+        pendingPayment.service = service;
+        pendingPayment.updatedAt = new Date().toISOString();
+      }
+    }
+
+    return { processed, updated, created };
   }
 
   // --- Verification Desk Actions ---

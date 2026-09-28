@@ -143,6 +143,12 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
           </Link>
 
           <div className="flex items-center gap-3">
+            <Link
+              href={`/invoices/generate?edit=${invoice.id}`}
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 text-xs font-bold shadow-sm transition"
+            >
+              <span>Edit Invoice & Amount</span>
+            </Link>
             <a
               href={`/api/invoices/${invoice.id}/pdf`}
               target="_blank"
@@ -165,14 +171,15 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
                   A
                 </div>
                 <div>
-                  <h2 className="font-extrabold text-slate-900 tracking-wider text-base">ARKA OPERATIONS</h2>
+                  <h2 className="font-extrabold text-slate-900 tracking-wider text-base">ARKA DIGITAL MEDIA</h2>
                   <p className="text-[11px] text-slate-400">FINANCIAL ACCOUNTS & BILLING</p>
                 </div>
               </div>
               <div className="mt-4 text-xs text-slate-500 space-y-0.5">
-                <p>Arka Operations Hub</p>
-                <p>Tax Reg / GSTIN: 27AABCA1234D1Z5</p>
-                <p>accounts@arkaoperations.com</p>
+                <p className="font-bold text-slate-800">Arka Digital Media</p>
+                <p>Address: Hosakote, Bengaluru, Karnataka</p>
+                <p>Phone: +91 91106 61283</p>
+                <p>GSTIN: 27AABCA1234D1Z5</p>
               </div>
             </div>
 
@@ -272,11 +279,10 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
                 <tr>
                   <td className="px-6 py-4">
                     <p className="font-bold text-slate-900">
-                      {service?.name || "Professional Retainer Services"}
+                      {service?.name || "Digital Marketing Service / Google and Meta Ads"}
                     </p>
                     <p className="text-xs text-slate-500 mt-0.5">
-                      {invoice.notes ||
-                        schedule?.billingFrequency + " billing cycle as per client engagement contract."}
+                      {invoice.notes || "Digital Marketing Service / Google and Meta Ads"}
                     </p>
                   </td>
                   <td className="px-6 py-4 text-center text-xs text-slate-600">1</td>
@@ -291,13 +297,14 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
             </table>
           </div>
 
-          {/* Totals Calculation */}
+          {/* Totals Calculation & User Payment Details */}
           <div className="flex flex-col sm:flex-row justify-between items-start gap-6 pt-4">
-            <div className="max-w-md text-xs text-slate-500 space-y-1">
-              <p className="font-semibold text-slate-700">Payment Instructions:</p>
-              <p>Direct Bank Transfer / NEFT / RTGS</p>
-              <p>Bank: HDFC Bank · A/C: 50200012345678 · IFSC: HDFC0000240</p>
-              <p>Please share UTR receipt upon transfer for instant verification.</p>
+            <div className="max-w-md text-xs text-slate-600 space-y-1 bg-slate-50 p-4 rounded-2xl border border-slate-100">
+              <p className="font-bold text-slate-900 uppercase tracking-wider text-[11px]">Payment Details</p>
+              <p><span className="text-slate-500">Account no. -</span> <strong className="font-mono font-bold text-slate-900">1322054000000346</strong></p>
+              <p><span className="text-slate-500">Name:</span> <strong className="font-bold text-slate-900">ESHWAR SP</strong></p>
+              <p><span className="text-slate-500">IFSC:</span> <strong className="font-mono font-bold text-slate-900">KVBL0001322</strong></p>
+              <p><span className="text-slate-500">Branch:</span> <strong className="font-bold text-slate-900">Hosakote</strong></p>
             </div>
 
             <div className="w-full sm:w-72 space-y-2 text-sm">

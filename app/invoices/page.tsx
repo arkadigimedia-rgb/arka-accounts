@@ -217,13 +217,23 @@ export default function InvoicesPage() {
             </p>
           </div>
 
-          <button
-            onClick={() => setShowGenerateModal(true)}
-            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-950 hover:bg-slate-800 text-white text-sm font-semibold shadow-sm transition"
-          >
-            <Plus className="h-4 w-4" />
-            <span>Generate Single Invoice</span>
-          </button>
+          <div className="flex flex-wrap items-center gap-3">
+            <Link
+              href="/invoices/generate"
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 text-sm font-bold shadow-sm transition"
+            >
+              <Plus className="h-4 w-4" />
+              <span>Create Custom Invoice</span>
+            </Link>
+
+            <button
+              onClick={() => setShowGenerateModal(true)}
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-950 hover:bg-slate-800 text-white text-sm font-semibold shadow-sm transition"
+            >
+              <Calendar className="h-4 w-4" />
+              <span>Generate from Schedule</span>
+            </button>
+          </div>
         </div>
 
         {/* Notices */}
@@ -480,6 +490,14 @@ export default function InvoicesPage() {
                         </span>
                       </td>
                       <td className="px-6 py-4 text-right space-x-2">
+                        <Link
+                          href={`/invoices/generate?edit=${inv.id}`}
+                          className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-amber-300 bg-amber-50 hover:bg-amber-100 text-amber-950 text-xs font-semibold transition"
+                          title="Edit amount and invoice details"
+                        >
+                          <span>Edit</span>
+                        </Link>
+
                         <Link
                           href={`/invoices/${inv.id}`}
                           className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-100 text-slate-700 text-xs font-semibold transition"

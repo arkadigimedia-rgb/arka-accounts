@@ -2,6 +2,7 @@
 
 import React, { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import * as XLSX from "xlsx";
 import { ArkaShell, useAuth } from "@/components/arka-shell";
 import {
   AlertCircle,
@@ -10,6 +11,8 @@ import {
   CalendarClock,
   CheckCircle,
   Clock,
+  Download,
+  FileSpreadsheet,
   Filter,
   IndianRupee,
   Play,
@@ -18,6 +21,7 @@ import {
   Search,
   Settings2,
   ShieldCheck,
+  Upload,
   X,
 } from "lucide-react";
 
@@ -77,6 +81,23 @@ export default function BillingSchedulesPage() {
     billingStartDate: new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata" }).format(new Date()),
     autoGenerateInvoice: true,
     autoSendInvoice: false,
+  });
+
+  // Excel Import Modal
+  const [showExcelModal, setShowExcelModal] = useState(false);
+  const [excelFile, setExcelFile] = useState<File | null>(null);
+  const [excelRows, setExcelRows] = useState<Array<Record<string, any>>>([]);
+  const [importingExcel, setImportingExcel] = useState(false);
+  const [excelError, setExcelError] = useState<string | null>(null);
+
+  // Edit Schedule Modal
+  const [editingSchedule, setEditingSchedule] = useState<BillingSchedule | null>(null);
+  const [editFormData, setEditFormData] = useState({
+    billingFrequency: "MONTHLY",
+    expectedAmount: "",
+    invoiceGenerationDay: "1",
+    nextDueDate: "",
+    status: "ACTIVE",
   });
 
   const loadData = async () => {
@@ -187,6 +208,101 @@ export default function BillingSchedulesPage() {
     }
   };
 
+  const handleExcelFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setExcelFile(file);
+    setExcelError(null);
+
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      try {
+        const data = evt.target?.result;
+        const workbook = XLSX.read(data, { type: "array" });
+        const sheetName = workbook.SheetNames[0];
+        const sheet = workbook.Sheets[sheetName];
+        const rows = XLSX.utils.sheet_to_json(sheet, { defval: "" });
+        setExcelRows(rows as Array<Record<string, any>>);
+      } catch {
+        setExcelError("Unable to parse Excel file. Please ensure it is a valid .xlsx, .xls, or .csv.");
+      }
+    };
+    reader.readAsArrayBuffer(file);
+  };
+
+  const handleApplyExcelChanges = async () => {
+    if (excelRows.length === 0) {
+      setExcelError("No rows found in the uploaded spreadsheet.");
+      return;
+    }
+    setImportingExcel(true);
+    setExcelError(null);
+    try {
+      const res = await fetch("/api/billing/import-excel", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ rows: excelRows }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setNotice(data.message || `Successfully processed ${excelRows.length} billing rows.`);
+        setShowExcelModal(false);
+        setExcelFile(null);
+        setExcelRows([]);
+        loadData();
+        setTimeout(() => setNotice(null), 6000);
+      } else {
+        setExcelError(data.error || "Failed to update billing cycles from Excel.");
+      }
+    } catch {
+      setExcelError("Network error while uploading Excel spreadsheet.");
+    } finally {
+      setImportingExcel(false);
+    }
+  };
+
+  const handleOpenEdit = (s: BillingSchedule) => {
+    setEditingSchedule(s);
+    setEditFormData({
+      billingFrequency: s.billingFrequency || "MONTHLY",
+      expectedAmount: String(s.expectedAmount || 0),
+      invoiceGenerationDay: String(s.invoiceGenerationDay || 1),
+      nextDueDate: s.nextDueDate || "",
+      status: s.status || "ACTIVE",
+    });
+  };
+
+  const handleSaveEditSchedule = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingSchedule) return;
+    try {
+      const res = await fetch("/api/billing", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: editingSchedule.id,
+          billingFrequency: editFormData.billingFrequency,
+          amount: Number(editFormData.expectedAmount),
+          expectedAmount: Number(editFormData.expectedAmount),
+          invoiceGenerationDay: Number(editFormData.invoiceGenerationDay),
+          nextDueDate: editFormData.nextDueDate,
+          status: editFormData.status,
+        }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setNotice(`Schedule for ${editingSchedule.clientName} updated successfully.`);
+        setEditingSchedule(null);
+        loadData();
+        setTimeout(() => setNotice(null), 5000);
+      } else {
+        alert(data.error || "Failed to update schedule.");
+      }
+    } catch {
+      alert("Network error updating schedule.");
+    }
+  };
+
   const filteredSchedules = useMemo(() => {
     return schedules.filter((s) => {
       const matchesSearch =
@@ -232,6 +348,24 @@ export default function BillingSchedulesPage() {
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
+            <a
+              href="/api/billing/import-excel"
+              download="Billing_Cycle_Change_Template.xlsx"
+              className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold shadow-xs transition"
+              title="Download clean Excel template to update billing cycles"
+            >
+              <Download className="h-4 w-4 text-slate-500" />
+              <span>Excel Template</span>
+            </a>
+
+            <button
+              onClick={() => setShowExcelModal(true)}
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-bold shadow-sm transition"
+            >
+              <FileSpreadsheet className="h-4 w-4" />
+              <span>Import Billing Excel</span>
+            </button>
+
             <button
               onClick={handleRunInvoicing}
               disabled={generatingInvoices}
@@ -352,6 +486,7 @@ export default function BillingSchedulesPage() {
                     <th className="px-6 py-3.5">Next Due Date</th>
                     <th className="px-6 py-3.5">Automation</th>
                     <th className="px-6 py-3.5">Status</th>
+                    <th className="px-6 py-3.5 text-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -418,6 +553,14 @@ export default function BillingSchedulesPage() {
                         >
                           {schedule.status}
                         </span>
+                      </td>
+                      <td className="px-6 py-4 text-right">
+                        <button
+                          onClick={() => handleOpenEdit(schedule)}
+                          className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-100 text-slate-700 text-xs font-semibold transition"
+                        >
+                          <span>Edit</span>
+                        </button>
                       </td>
                     </tr>
                   ))}
@@ -569,6 +712,280 @@ export default function BillingSchedulesPage() {
                     className="px-5 py-2.5 rounded-xl bg-slate-950 hover:bg-slate-800 text-white text-sm font-semibold transition disabled:opacity-50"
                   >
                     {formSubmitting ? "Creating..." : "Save Schedule"}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* Excel Import Modal for Billing Cycle Updates */}
+        {showExcelModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-sm">
+            <div className="bg-white rounded-3xl max-w-2xl w-full p-6 sm:p-8 shadow-2xl border border-slate-200 max-h-[90vh] flex flex-col">
+              <div className="flex items-center justify-between pb-4 border-b border-slate-100 shrink-0">
+                <div className="flex items-center gap-2.5">
+                  <div className="p-2 rounded-xl bg-emerald-50 text-emerald-600">
+                    <FileSpreadsheet className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-bold text-slate-900">
+                      Import Billing Cycles & Amounts from Excel
+                    </h3>
+                    <p className="text-xs text-slate-500">
+                      Upload .xlsx or .csv spreadsheets to update client billing cycles and amounts in bulk
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => {
+                    setShowExcelModal(false);
+                    setExcelFile(null);
+                    setExcelRows([]);
+                    setExcelError(null);
+                  }}
+                  className="p-1 rounded-lg text-slate-400 hover:text-slate-600"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+
+              <div className="py-4 space-y-4 overflow-y-auto flex-1 pr-1">
+                {/* Instructions & Template Link */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 rounded-xl bg-slate-50 border border-slate-200 text-xs">
+                  <div>
+                    <p className="font-bold text-slate-800">Supported Columns in Excel:</p>
+                    <p className="text-slate-500 mt-0.5">
+                      Client Name, Billing Cycle (Monthly / Quarterly), Amount Payable, Invoice Date, Due Date
+                    </p>
+                  </div>
+                  <a
+                    href="/api/billing/import-excel"
+                    download="Billing_Cycle_Change_Template.xlsx"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white border border-slate-200 hover:bg-slate-100 text-slate-700 font-bold shrink-0 shadow-2xs"
+                  >
+                    <Download className="h-3.5 w-3.5 text-slate-500" />
+                    <span>Download Template</span>
+                  </a>
+                </div>
+
+                {/* File Upload Zone */}
+                <div className="border-2 border-dashed border-slate-200 hover:border-slate-400 rounded-2xl p-6 text-center transition bg-slate-50/50">
+                  <Upload className="h-8 w-8 text-slate-400 mx-auto mb-2" />
+                  <p className="text-sm font-bold text-slate-800">
+                    {excelFile ? excelFile.name : "Select or Drop Spreadsheet"}
+                  </p>
+                  <p className="text-xs text-slate-500 mt-1">
+                    Supports Microsoft Excel (.xlsx, .xls) and CSV (.csv)
+                  </p>
+                  <label className="mt-3 inline-block">
+                    <span className="px-4 py-2 rounded-xl bg-slate-950 text-white text-xs font-bold cursor-pointer hover:bg-slate-800 transition">
+                      Choose File
+                    </span>
+                    <input
+                      type="file"
+                      accept=".xlsx, .xls, .csv"
+                      onChange={handleExcelFileChange}
+                      className="hidden"
+                    />
+                  </label>
+                </div>
+
+                {excelError && (
+                  <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs font-semibold">
+                    {excelError}
+                  </div>
+                )}
+
+                {/* Live Parsed Preview Table */}
+                {excelRows.length > 0 && (
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-slate-900">
+                        Spreadsheet Preview ({excelRows.length} Rows Detected)
+                      </span>
+                      <span className="text-[11px] font-semibold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">
+                        Ready to Apply
+                      </span>
+                    </div>
+
+                    <div className="border border-slate-200 rounded-xl overflow-hidden max-h-56 overflow-y-auto">
+                      <table className="w-full text-left text-xs">
+                        <thead className="bg-slate-100 text-slate-600 uppercase text-[10px] font-bold sticky top-0">
+                          <tr>
+                            <th className="py-2 px-3">Client</th>
+                            <th className="py-2 px-3">Cycle</th>
+                            <th className="py-2 px-3">Amount</th>
+                            <th className="py-2 px-3">Due Date</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                          {excelRows.slice(0, 10).map((r, i) => {
+                            const name = r["Client Name"] || r["client"] || r["Name"] || Object.values(r)[0];
+                            const cycle = r["Billing Cycle"] || r["frequency"] || "Monthly";
+                            const amt = r["Amount Payable"] || r["Amount"] || r["monthlyFee"] || "—";
+                            const due = r["Invoice Due Date"] || r["Due Date"] || "—";
+                            return (
+                              <tr key={i} className="hover:bg-slate-50">
+                                <td className="py-2 px-3 font-semibold text-slate-900">{String(name)}</td>
+                                <td className="py-2 px-3 text-slate-600">{String(cycle)}</td>
+                                <td className="py-2 px-3 font-mono text-slate-800">
+                                  {typeof amt === "number" ? rupees(amt) : String(amt)}
+                                </td>
+                                <td className="py-2 px-3 font-mono text-slate-500">{String(due)}</td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                    {excelRows.length > 10 && (
+                      <p className="text-[11px] text-slate-400 text-right">
+                        Showing first 10 of {excelRows.length} rows...
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowExcelModal(false);
+                    setExcelFile(null);
+                    setExcelRows([]);
+                  }}
+                  className="px-4 py-2.5 rounded-xl border border-slate-200 text-slate-700 text-xs font-semibold hover:bg-slate-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  disabled={excelRows.length === 0 || importingExcel}
+                  onClick={handleApplyExcelChanges}
+                  className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition disabled:opacity-50"
+                >
+                  {importingExcel
+                    ? "Applying Updates..."
+                    : `Update ${excelRows.length} Billing Schedule(s)`}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Quick Edit Schedule Modal */}
+        {editingSchedule && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-sm">
+            <div className="bg-white rounded-3xl max-w-md w-full p-6 sm:p-8 shadow-2xl border border-slate-200">
+              <div className="flex items-center justify-between pb-4 border-b border-slate-100">
+                <div>
+                  <h3 className="text-base font-bold text-slate-900">
+                    Edit Billing Cycle & Amount
+                  </h3>
+                  <p className="text-xs text-slate-500 font-semibold mt-0.5">
+                    {editingSchedule.clientName}
+                  </p>
+                </div>
+                <button
+                  onClick={() => setEditingSchedule(null)}
+                  className="p-1 rounded-lg text-slate-400 hover:text-slate-600"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+
+              <form onSubmit={handleSaveEditSchedule} className="mt-5 space-y-4">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    Billing Cycle / Frequency
+                  </label>
+                  <select
+                    value={editFormData.billingFrequency}
+                    onChange={(e) =>
+                      setEditFormData({ ...editFormData, billingFrequency: e.target.value })
+                    }
+                    className="w-full px-3.5 py-2 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-950"
+                  >
+                    <option value="MONTHLY">Monthly</option>
+                    <option value="QUARTERLY">Quarterly</option>
+                    <option value="ONE_TIME">One Time</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    Billing Amount (₹)
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    required
+                    value={editFormData.expectedAmount}
+                    onChange={(e) =>
+                      setEditFormData({ ...editFormData, expectedAmount: e.target.value })
+                    }
+                    className="w-full px-3.5 py-2 text-sm font-mono font-bold border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-950"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">
+                      Invoice Day (1-28)
+                    </label>
+                    <input
+                      type="number"
+                      min={1}
+                      max={28}
+                      value={editFormData.invoiceGenerationDay}
+                      onChange={(e) =>
+                        setEditFormData({ ...editFormData, invoiceGenerationDay: e.target.value })
+                      }
+                      className="w-full px-3.5 py-2 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-950"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">
+                      Next Due Date
+                    </label>
+                    <input
+                      type="date"
+                      value={editFormData.nextDueDate}
+                      onChange={(e) =>
+                        setEditFormData({ ...editFormData, nextDueDate: e.target.value })
+                      }
+                      className="w-full px-3.5 py-2 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-950"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Status</label>
+                  <select
+                    value={editFormData.status}
+                    onChange={(e) => setEditFormData({ ...editFormData, status: e.target.value })}
+                    className="w-full px-3.5 py-2 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-950"
+                  >
+                    <option value="ACTIVE">ACTIVE</option>
+                    <option value="PAUSED">PAUSED</option>
+                  </select>
+                </div>
+
+                <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
+                  <button
+                    type="button"
+                    onClick={() => setEditingSchedule(null)}
+                    className="px-4 py-2.5 rounded-xl border border-slate-200 text-slate-700 text-xs font-semibold hover:bg-slate-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-5 py-2.5 rounded-xl bg-slate-950 hover:bg-slate-800 text-white text-xs font-bold transition shadow-xs"
+                  >
+                    Save Changes
                   </button>
                 </div>
               </form>

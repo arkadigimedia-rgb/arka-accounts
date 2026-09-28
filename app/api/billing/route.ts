@@ -151,3 +151,28 @@ export async function POST(request: Request) {
     );
   }
 }
+
+export async function PATCH(request: Request) {
+  try {
+    const body = await request.json();
+    const id = Number(body.id);
+    if (!id) {
+      return NextResponse.json({ error: "Schedule ID is required." }, { status: 400 });
+    }
+
+    const updated = operationalStore.updateBillingSchedule(id, body);
+    if (!updated) {
+      return NextResponse.json({ error: "Schedule not found." }, { status: 404 });
+    }
+
+    return NextResponse.json({ success: true, schedule: updated });
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : "Failed to update schedule";
+    return NextResponse.json({ error: msg }, { status: 500 });
+  }
+}
+
+export async function PUT(request: Request) {
+  return PATCH(request);
+}
+

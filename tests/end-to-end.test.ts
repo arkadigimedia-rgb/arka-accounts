@@ -375,4 +375,107 @@ describe("ARKA Accounts End-to-End Operational Pipeline", () => {
       expect(hrData.email).toBe("hr@arkadigitalmedia.in");
     });
   });
+
+  describe("7. Custom Invoice Generation, Excel Billing Updates & Payment Details", () => {
+    it("generates custom invoice with arbitrary amount, correct service title, and address", async () => {
+      const { operationalStore } = await import("@/lib/operational-store");
+
+      const custom = operationalStore.createCustomInvoice({
+        clientName: "Alpha Vertex Dynamics",
+        subtotal: 75000,
+        taxAmount: 13500,
+        totalAmount: 88500,
+        address: "Hosakote, Bengaluru, Karnataka",
+        service: "Digital Marketing Service / Google and Meta Ads",
+        serviceDescription: "Digital Marketing Service / Google and Meta Ads",
+      });
+
+      expect(custom.invoice.clientName).toBe("Alpha Vertex Dynamics");
+      expect(custom.invoice.totalAmount).toBe(88500);
+      expect(custom.invoice.service).toBe("Digital Marketing Service / Google and Meta Ads");
+      expect(custom.payment.expectedAmount).toBe(88500);
+      expect(custom.client.address).toBe("Hosakote, Bengaluru, Karnataka");
+    });
+
+    it("allows editing invoice amounts and recalculates ledger totals", async () => {
+      const { operationalStore } = await import("@/lib/operational-store");
+
+      const custom = operationalStore.createCustomInvoice({
+        clientName: "Beta Scale Ltd",
+        subtotal: 40000,
+        taxAmount: 0,
+        totalAmount: 40000,
+      });
+
+      const updated = operationalStore.updateInvoice(custom.invoice.id, {
+        subtotal: 65000,
+        taxAmount: 0,
+        totalAmount: 65000,
+      });
+
+      expect(updated).not.toBeNull();
+      expect(updated?.totalAmount).toBe(65000);
+
+      const payment = operationalStore.getPaymentByInvoiceId(custom.invoice.id);
+      expect(payment?.expectedAmount).toBe(65000);
+    });
+
+    it("imports and updates billing cycles from Excel rows", async () => {
+      const { operationalStore } = await import("@/lib/operational-store");
+
+      const rows = [
+        {
+          "Client Name": "Excel Test Client 1",
+          "Billing Cycle": "Quarterly",
+          "Amount Payable": "95,000",
+          "Invoice Date": "2026-10-01",
+          "Invoice Due Date": "2026-10-15",
+          "Product/Service": "Digital Marketing Service / Google and Meta Ads",
+        },
+      ];
+
+      const result = operationalStore.importBillingRows(rows);
+      expect(result.processed).toBe(1);
+
+      const client = operationalStore.getClients().find((c) => c.name === "Excel Test Client 1");
+      expect(client).toBeDefined();
+      expect(client?.monthlyFee).toBe(95000);
+
+      const schedules = operationalStore.getBillingSchedules();
+      const sched = schedules.find((s) => s.clientId === client?.id);
+      expect(sched?.billingFrequency).toBe("QUARTERLY");
+      expect(sched?.expectedAmount).toBe(95000);
+    });
+
+    it("produces valid PDF bytes with custom payment details and address", async () => {
+      const { generateInvoicePdf } = await import("@/lib/invoice-pdf");
+
+      const pdfBytes = await generateInvoicePdf({
+        invoiceNumber: "INV-2026-TEST",
+        issueDate: "2026-10-01",
+        dueDate: "2026-10-08",
+        client: {
+          name: "Test Brand",
+          address: "Hosakote, Bengaluru, Karnataka",
+        },
+        service: {
+          name: "Digital Marketing Service / Google and Meta Ads",
+          description: "Digital Marketing Service / Google and Meta Ads",
+        },
+        subtotal: 50000,
+        taxAmount: 9000,
+        totalAmount: 59000,
+        paymentInstructions: {
+          accountNumber: "1322054000000346",
+          accountName: "ESHWAR SP",
+          ifsc: "KVBL0001322",
+          bankName: "Hosakote",
+        },
+      });
+
+      expect(pdfBytes).toBeInstanceOf(Uint8Array);
+      expect(pdfBytes.byteLength).toBeGreaterThan(1000);
+    });
+  });
 });
+

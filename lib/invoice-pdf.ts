@@ -148,18 +148,9 @@ export async function generateInvoicePdf(data: InvoicePdfData): Promise<Uint8Arr
     cy -= 12;
   }
 
-  if (data.client.email) {
-    page.drawText(data.client.email.slice(0, 50), {
-      x: 60,
-      y: cy,
-      size: 8.5,
-      font: fontRegular,
-      color: muted,
-    });
-    cy -= 12;
-  }
-
-  const rawAddr = (data.client.address || "").trim();
+  // User requirement: "add address instead of accounts mail"
+  // Print client address directly under contact person / phone
+  const rawAddr = (data.client.address || "Hosakote, Bengaluru, Karnataka").trim();
   const parts: string[] = [];
   if (rawAddr) parts.push(rawAddr);
   if (data.client.city && !rawAddr.toLowerCase().includes(data.client.city.toLowerCase())) {
@@ -192,18 +183,18 @@ export async function generateInvoicePdf(data: InvoicePdfData): Promise<Uint8Arr
 
   // 3. Table Line Items (Banner is y = 457 to 488; separator line is at y = 384)
   const itemY = 432;
-  const serviceName = data.service.name || "Retainer Operations";
-  page.drawText(serviceName.slice(0, 40), {
+  const serviceName = data.service.name || "Digital Marketing Service / Google and Meta Ads";
+  page.drawText(serviceName.slice(0, 48), {
     x: 26,
     y: itemY,
-    size: 10,
+    size: 9.5,
     font: fontBold,
     color: dark,
   });
 
   const serviceDesc =
-    data.service.description || "Monthly Media & Digital Operations Retainer";
-  page.drawText(serviceDesc.slice(0, 60), {
+    data.service.description || "Digital Marketing Service / Google and Meta Ads";
+  page.drawText(serviceDesc.slice(0, 65), {
     x: 26,
     y: itemY - 14,
     size: 8.5,
@@ -247,11 +238,12 @@ export async function generateInvoicePdf(data: InvoicePdfData): Promise<Uint8Arr
   drawTextRight(totalFormatted, 560, 250, fontBold, 12, white);
 
   // 6. Payment Details (Bottom Left)
+  // Specified by user: Account no: 1322054000000346, Name: ESHWAR SP, IFSC: KVBL0001322, Branch: Hosakote
   const instructions = data.paymentInstructions || {};
-  const acctNo = instructions.accountNumber || "9110661283001";
-  const acctName = instructions.accountName || "Arka Digital Media";
-  const ifsc = instructions.ifsc || "HDFC0001234";
-  const branch = instructions.bankName || "Hoskote Branch, Bengaluru";
+  const acctNo = instructions.accountNumber || "1322054000000346";
+  const acctName = instructions.accountName || "ESHWAR SP";
+  const ifsc = instructions.ifsc || "KVBL0001322";
+  const branch = instructions.bankName || "Hosakote";
 
   page.drawText(acctNo, { x: 145, y: 158, size: 9.5, font: fontBold, color: dark });
   page.drawText(acctName, { x: 145, y: 138, size: 9.5, font: fontRegular, color: dark });
