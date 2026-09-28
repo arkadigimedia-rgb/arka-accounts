@@ -227,15 +227,13 @@ export default function ActionCenterPage() {
             </p>
           </div>
           <div className="flex gap-2">
-            {!isHr && (
-              <Link
-                href="/invoices"
-                className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-amber-400 text-slate-950 font-bold text-xs hover:bg-amber-300 transition"
-              >
-                <FileText className="h-4 w-4" />
-                Invoices
-              </Link>
-            )}
+            <Link
+              href="/invoices"
+              className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-amber-400 text-slate-950 font-bold text-xs hover:bg-amber-300 transition"
+            >
+              <FileText className="h-4 w-4" />
+              Invoices
+            </Link>
             <Link
               href="/verification"
               className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-slate-800 text-white font-bold text-xs hover:bg-slate-700 transition"

@@ -447,7 +447,7 @@ export default function InvoicesPage() {
                     <th className="px-6 py-3.5">Client</th>
                     <th className="px-6 py-3.5">Issue Date</th>
                     <th className="px-6 py-3.5">Due Date</th>
-                    {!isHr && <th className="px-6 py-3.5">Total (₹)</th>}
+                    <th className="px-6 py-3.5">Total (₹)</th>
                     <th className="px-6 py-3.5">Status</th>
                     <th className="px-6 py-3.5 text-right">Actions</th>
                   </tr>
@@ -473,9 +473,7 @@ export default function InvoicesPage() {
                       </td>
                       <td className="px-6 py-4 text-xs font-mono text-slate-600">{inv.issueDate}</td>
                       <td className="px-6 py-4 text-xs font-mono text-slate-600">{inv.dueDate}</td>
-                      {!isHr && (
-                        <td className="px-6 py-4 font-black text-slate-900">{rupees(inv.totalAmount)}</td>
-                      )}
+                      <td className="px-6 py-4 font-black text-slate-900">{rupees(inv.totalAmount)}</td>
                       <td className="px-6 py-4">
                         <span
                           className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold ${

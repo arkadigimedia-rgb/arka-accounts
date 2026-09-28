@@ -252,7 +252,9 @@ export default function ReportsPage() {
                   <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
                     Current (Not Overdue)
                   </p>
-                  <p className="mt-2 text-2xl font-black text-slate-900">{rupees(data.aging.current)}</p>
+                  <p className="mt-2 text-2xl font-black text-slate-900">
+                    {isHr ? "Normal Cadence" : rupees(data.aging.current)}
+                  </p>
                   <p className="text-[10px] text-slate-400 mt-1">Due in future cycles</p>
                 </div>
 
@@ -260,7 +262,9 @@ export default function ReportsPage() {
                   <p className="text-[11px] font-bold uppercase tracking-wider text-amber-800">
                     1 – 30 Days Overdue
                   </p>
-                  <p className="mt-2 text-2xl font-black text-amber-900">{rupees(data.aging.days1To30)}</p>
+                  <p className="mt-2 text-2xl font-black text-amber-900">
+                    {isHr ? `${data.summary.dueTodayCount} Accounts` : rupees(data.aging.days1To30)}
+                  </p>
                   <p className="text-[10px] text-amber-700/70 mt-1">Initial follow-up window</p>
                 </div>
 
@@ -268,7 +272,9 @@ export default function ReportsPage() {
                   <p className="text-[11px] font-bold uppercase tracking-wider text-orange-800">
                     31 – 60 Days Overdue
                   </p>
-                  <p className="mt-2 text-2xl font-black text-orange-900">{rupees(data.aging.days31To60)}</p>
+                  <p className="mt-2 text-2xl font-black text-orange-900">
+                    {isHr ? `${data.summary.overdueCount} Accounts` : rupees(data.aging.days31To60)}
+                  </p>
                   <p className="text-[10px] text-orange-700/70 mt-1">Escalated collection required</p>
                 </div>
 
@@ -276,7 +282,9 @@ export default function ReportsPage() {
                   <p className="text-[11px] font-bold uppercase tracking-wider text-rose-800">
                     61+ Days (High Risk)
                   </p>
-                  <p className="mt-2 text-2xl font-black text-rose-900">{rupees(data.aging.days61Plus)}</p>
+                  <p className="mt-2 text-2xl font-black text-rose-900">
+                    {isHr ? (data.summary.overdueCount > 0 ? "Escalated" : "Zero High Risk") : rupees(data.aging.days61Plus)}
+                  </p>
                   <p className="text-[10px] text-rose-700/70 mt-1">Founder intervention needed</p>
                 </div>
               </div>

@@ -508,7 +508,7 @@ export default function ClientDetailsPage({ params }: { params: Promise<{ id: st
                       <th className="px-6 py-3">Invoice Number</th>
                       <th className="px-6 py-3">Issue Date</th>
                       <th className="px-6 py-3">Due Date</th>
-                      {!isHr && <th className="px-6 py-3">Amount</th>}
+                      <th className="px-6 py-3">Amount</th>
                       <th className="px-6 py-3">Status</th>
                       <th className="px-6 py-3 text-right">PDF</th>
                     </tr>
@@ -523,9 +523,7 @@ export default function ClientDetailsPage({ params }: { params: Promise<{ id: st
                         </td>
                         <td className="px-6 py-3.5 text-xs text-slate-600">{inv.issueDate}</td>
                         <td className="px-6 py-3.5 text-xs text-slate-600">{inv.dueDate}</td>
-                        {!isHr && (
-                          <td className="px-6 py-3.5 font-bold text-slate-900">{rupees(inv.totalAmount)}</td>
-                        )}
+                        <td className="px-6 py-3.5 font-bold text-slate-900">{rupees(inv.totalAmount)}</td>
                         <td className="px-6 py-3.5">
                           <span
                             className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${

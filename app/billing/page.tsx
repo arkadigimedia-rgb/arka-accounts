@@ -481,7 +481,7 @@ export default function BillingSchedulesPage() {
                   <tr>
                     <th className="px-6 py-3.5">Client & Service</th>
                     <th className="px-6 py-3.5">Billing Cadence</th>
-                    {!isHr && <th className="px-6 py-3.5">Amount</th>}
+                    <th className="px-6 py-3.5">Amount</th>
                     <th className="px-6 py-3.5">Next Invoice Date</th>
                     <th className="px-6 py-3.5">Next Due Date</th>
                     <th className="px-6 py-3.5">Automation</th>
@@ -511,11 +511,9 @@ export default function BillingSchedulesPage() {
                           Day {schedule.invoiceGenerationDay || 1} of month
                         </span>
                       </td>
-                      {!isHr && (
-                        <td className="px-6 py-4 font-black text-slate-900 text-base">
-                          {rupees(schedule.expectedAmount)}
-                        </td>
-                      )}
+                      <td className="px-6 py-4 font-black text-slate-900 text-base">
+                        {rupees(schedule.expectedAmount)}
+                      </td>
                       <td className="px-6 py-4 text-xs font-mono text-slate-700">
                         {schedule.nextInvoiceDate || "—"}
                       </td>
