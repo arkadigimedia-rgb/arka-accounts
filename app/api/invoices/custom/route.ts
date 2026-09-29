@@ -45,12 +45,20 @@ export async function POST(request: Request) {
       billingPeriodStart: body.billingPeriodStart,
       billingPeriodEnd: body.billingPeriodEnd,
       status: body.status || "GENERATED",
-      paymentInstructions: {
-        accountNumber: "1322054000000346",
-        accountName: "ESHWAR SP",
-        ifsc: "KVBL0001322",
-        bankName: "Hosakote",
-      },
+      notes: body.notes || null,
+      paymentInstructions: body.paymentInstructions
+        ? {
+            accountNumber: body.paymentInstructions.accountNumber || "1322054000000346",
+            accountName: body.paymentInstructions.accountName || "ESHWAR SP",
+            ifsc: body.paymentInstructions.ifsc || "KVBL0001322",
+            bankName: body.paymentInstructions.bankName || body.paymentInstructions.branch || "Hosakote",
+          }
+        : {
+            accountNumber: "1322054000000346",
+            accountName: "ESHWAR SP",
+            ifsc: "KVBL0001322",
+            bankName: "Hosakote",
+          },
     });
 
     return NextResponse.json(

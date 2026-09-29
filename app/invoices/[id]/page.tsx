@@ -12,6 +12,7 @@ import {
   Download,
   ExternalLink,
   Eye,
+  FileEdit,
   FileText,
   IndianRupee,
   Mail,
@@ -36,6 +37,12 @@ interface InvoiceDetail {
     currency: string;
     status: string;
     notes: string | null;
+    paymentInstructions?: {
+      accountNumber?: string;
+      accountName?: string;
+      ifsc?: string;
+      bankName?: string;
+    } | null;
     pdfStorageKey: string | null;
     createdAt: string;
   };
@@ -147,7 +154,8 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
               href={`/invoices/generate?edit=${invoice.id}`}
               className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 text-xs font-bold shadow-sm transition"
             >
-              <span>Edit Invoice & Amount</span>
+              <FileEdit className="h-4 w-4" />
+              <span>Edit Everything & Amount</span>
             </Link>
             <a
               href={`/api/invoices/${invoice.id}/pdf`}
@@ -301,10 +309,36 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
           <div className="flex flex-col sm:flex-row justify-between items-start gap-6 pt-4">
             <div className="max-w-md text-xs text-slate-600 space-y-1 bg-slate-50 p-4 rounded-2xl border border-slate-100">
               <p className="font-bold text-slate-900 uppercase tracking-wider text-[11px]">Payment Details</p>
-              <p><span className="text-slate-500">Account no. -</span> <strong className="font-mono font-bold text-slate-900">1322054000000346</strong></p>
-              <p><span className="text-slate-500">Name:</span> <strong className="font-bold text-slate-900">ESHWAR SP</strong></p>
-              <p><span className="text-slate-500">IFSC:</span> <strong className="font-mono font-bold text-slate-900">KVBL0001322</strong></p>
-              <p><span className="text-slate-500">Branch:</span> <strong className="font-bold text-slate-900">Hosakote</strong></p>
+              <p>
+                <span className="text-slate-500">Account no. -</span>{" "}
+                <strong className="font-mono font-bold text-slate-900">
+                  {invoice.paymentInstructions?.accountNumber || "1322054000000346"}
+                </strong>
+              </p>
+              <p>
+                <span className="text-slate-500">Name:</span>{" "}
+                <strong className="font-bold text-slate-900">
+                  {invoice.paymentInstructions?.accountName || "ESHWAR SP"}
+                </strong>
+              </p>
+              <p>
+                <span className="text-slate-500">IFSC:</span>{" "}
+                <strong className="font-mono font-bold text-slate-900">
+                  {invoice.paymentInstructions?.ifsc || "KVBL0001322"}
+                </strong>
+              </p>
+              <p>
+                <span className="text-slate-500">Branch:</span>{" "}
+                <strong className="font-bold text-slate-900">
+                  {invoice.paymentInstructions?.bankName || "Hosakote"}
+                </strong>
+              </p>
+              {invoice.notes && (
+                <div className="mt-3 pt-2 border-t border-slate-200 text-[11px]">
+                  <span className="text-slate-500 font-semibold block">Notes & Terms:</span>
+                  <p className="text-slate-700 whitespace-pre-wrap mt-0.5">{invoice.notes}</p>
+                </div>
+              )}
             </div>
 
             <div className="w-full sm:w-72 space-y-2 text-sm">

@@ -95,13 +95,12 @@ function InvoiceGeneratorContent() {
   const [taxRate, setTaxRate] = useState<number>(0); // 0% or 18% GST
   const [status, setStatus] = useState<"GENERATED" | "SENT" | "PAID" | "OVERDUE">("GENERATED");
 
-  // Payment details (fixed as per requirements)
-  const bankDetails = {
-    accountNumber: "1322054000000346",
-    accountName: "ESHWAR SP",
-    ifsc: "KVBL0001322",
-    branch: "Hosakote",
-  };
+  // Payment details (editable with defaults)
+  const [bankAccountNumber, setBankAccountNumber] = useState("1322054000000346");
+  const [bankAccountName, setBankAccountName] = useState("ESHWAR SP");
+  const [bankIfsc, setBankIfsc] = useState("KVBL0001322");
+  const [bankBranch, setBankBranch] = useState("Hosakote");
+  const [notes, setNotes] = useState("");
 
   // Calculations
   const subtotal = Math.max(0, Number(amount) || 0);
@@ -149,6 +148,15 @@ function InvoiceGeneratorContent() {
             if (data.billingPeriodStart) setBillingPeriodStart(data.billingPeriodStart);
             if (data.billingPeriodEnd) setBillingPeriodEnd(data.billingPeriodEnd);
             if (data.status) setStatus(data.status);
+            if (data.notes) setNotes(data.notes);
+
+            const pi = data.paymentInstructions || data.invoice?.paymentInstructions;
+            if (pi) {
+              if (pi.accountNumber) setBankAccountNumber(pi.accountNumber);
+              if (pi.accountName) setBankAccountName(pi.accountName);
+              if (pi.ifsc) setBankIfsc(pi.ifsc);
+              if (pi.bankName || pi.branch) setBankBranch(pi.bankName || pi.branch);
+            }
           }
         } else {
           // Auto-generate invoice number
@@ -223,6 +231,13 @@ function InvoiceGeneratorContent() {
         billingPeriodStart,
         billingPeriodEnd,
         status,
+        notes: notes.trim() || undefined,
+        paymentInstructions: {
+          accountNumber: bankAccountNumber,
+          accountName: bankAccountName,
+          ifsc: bankIfsc,
+          bankName: bankBranch,
+        },
       };
 
       let res;
@@ -282,6 +297,13 @@ function InvoiceGeneratorContent() {
           dueDate,
           billingPeriodStart,
           billingPeriodEnd,
+          notes: notes.trim() || undefined,
+          paymentInstructions: {
+            accountNumber: bankAccountNumber,
+            accountName: bankAccountName,
+            ifsc: bankIfsc,
+            bankName: bankBranch,
+          },
         }),
       });
 
@@ -672,29 +694,104 @@ function InvoiceGeneratorContent() {
                 </div>
               </div>
 
-              {/* Section 4: Confirmed Payment Details Box */}
-              <div className="bg-amber-50/50 p-5 rounded-2xl border border-amber-200/60 shadow-xs space-y-2">
-                <div className="flex items-center gap-2 text-xs font-bold text-amber-900 uppercase tracking-wider">
-                  <Building2 className="h-4 w-4 text-amber-700" />
-                  <span>Configured Payment Details (Printed on Invoice)</span>
+              {/* Section 4: Bank & Payment Instructions (Editable) */}
+              <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+                <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+                  <div className="flex items-center gap-2">
+                    <Building2 className="h-4 w-4 text-amber-600" />
+                    <h2 className="text-sm font-bold text-slate-900 uppercase tracking-wider">
+                      Bank & Payment Instructions
+                    </h2>
+                  </div>
+                  <span className="text-[11px] font-semibold text-amber-800 bg-amber-50 px-2.5 py-0.5 rounded-md">
+                    Fully Editable
+                  </span>
                 </div>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs pt-1">
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
-                    <span className="text-slate-500 block">Account No.</span>
-                    <strong className="font-mono font-bold text-slate-900">{bankDetails.accountNumber}</strong>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">
+                      Bank Account Number *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={bankAccountNumber}
+                      onChange={(e) => setBankAccountNumber(e.target.value)}
+                      placeholder="1322054000000346"
+                      className="w-full px-3.5 py-2 text-sm font-mono font-bold border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-950"
+                    />
                   </div>
                   <div>
-                    <span className="text-slate-500 block">Beneficiary Name</span>
-                    <strong className="font-bold text-slate-900">{bankDetails.accountName}</strong>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">
+                      Beneficiary Account Name *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={bankAccountName}
+                      onChange={(e) => setBankAccountName(e.target.value)}
+                      placeholder="ESHWAR SP"
+                      className="w-full px-3.5 py-2 text-sm font-semibold border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-950"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">
+                      IFSC Code *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={bankIfsc}
+                      onChange={(e) => setBankIfsc(e.target.value)}
+                      placeholder="KVBL0001322"
+                      className="w-full px-3.5 py-2 text-sm font-mono uppercase font-bold border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-950"
+                    />
                   </div>
                   <div>
-                    <span className="text-slate-500 block">IFSC Code</span>
-                    <strong className="font-mono font-bold text-slate-900">{bankDetails.ifsc}</strong>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">
+                      Branch / Bank Name *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={bankBranch}
+                      onChange={(e) => setBankBranch(e.target.value)}
+                      placeholder="Hosakote"
+                      className="w-full px-3.5 py-2 text-sm font-semibold border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-950"
+                    />
                   </div>
-                  <div>
-                    <span className="text-slate-500 block">Branch</span>
-                    <strong className="font-bold text-slate-900">{bankDetails.branch}</strong>
+                </div>
+              </div>
+
+              {/* Section 5: Notes & Terms (Optional) */}
+              <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+                <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+                  <div className="flex items-center gap-2">
+                    <FileText className="h-4 w-4 text-amber-600" />
+                    <h2 className="text-sm font-bold text-slate-900 uppercase tracking-wider">
+                      Invoice Notes & Terms (Optional)
+                    </h2>
                   </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    Custom Notes or Payment Remarks
+                  </label>
+                  <textarea
+                    rows={2}
+                    value={notes}
+                    onChange={(e) => setNotes(e.target.value)}
+                    placeholder="e.g. Payment due within 7 days. Thank you for your business!"
+                    className="w-full px-3.5 py-2 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-950"
+                  />
+                  <p className="text-[11px] text-slate-400 mt-1">
+                    Printed at the bottom of the invoice preview and saved in ledger records.
+                  </p>
                 </div>
               </div>
 
@@ -860,22 +957,31 @@ function InvoiceGeneratorContent() {
                     <div>
                       <span className="text-slate-400 text-[11px]">Account no. -</span>{" "}
                       <strong className="font-mono font-bold text-slate-900">
-                        {bankDetails.accountNumber}
+                        {bankAccountNumber || "—"}
                       </strong>
                     </div>
                     <div>
                       <span className="text-slate-400 text-[11px]">Name:</span>{" "}
-                      <strong className="font-bold text-slate-900">{bankDetails.accountName}</strong>
+                      <strong className="font-bold text-slate-900">{bankAccountName || "—"}</strong>
                     </div>
                     <div>
                       <span className="text-slate-400 text-[11px]">IFSC:</span>{" "}
-                      <strong className="font-mono font-bold text-slate-900">{bankDetails.ifsc}</strong>
+                      <strong className="font-mono font-bold text-slate-900">{bankIfsc || "—"}</strong>
                     </div>
                     <div>
                       <span className="text-slate-400 text-[11px]">Branch:</span>{" "}
-                      <strong className="font-bold text-slate-900">{bankDetails.branch}</strong>
+                      <strong className="font-bold text-slate-900">{bankBranch || "—"}</strong>
                     </div>
                   </div>
+
+                  {notes && (
+                    <div className="mt-3 p-3 bg-amber-50/70 rounded-xl border border-amber-200/60 text-xs text-amber-950">
+                      <strong className="block text-[10px] uppercase font-bold text-amber-800">
+                        Notes / Terms:
+                      </strong>
+                      <p className="mt-0.5 whitespace-pre-wrap">{notes}</p>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>

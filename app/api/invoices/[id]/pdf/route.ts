@@ -66,12 +66,20 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
       },
       service: {
         name: inv.service || "Digital Marketing Service / Google and Meta Ads",
-        description: "Digital Marketing Service / Google and Meta Ads",
+        description: inv.serviceDescription || inv.notes || "Digital Marketing Service / Google and Meta Ads",
       },
       subtotal: inv.subtotal,
       taxAmount: inv.taxAmount,
       totalAmount: inv.totalAmount,
       currency: inv.currency,
+      paymentInstructions: inv.paymentInstructions
+        ? {
+            accountNumber: inv.paymentInstructions.accountNumber || "1322054000000346",
+            accountName: inv.paymentInstructions.accountName || "ESHWAR SP",
+            ifsc: inv.paymentInstructions.ifsc || "KVBL0001322",
+            bankName: inv.paymentInstructions.bankName || "Hosakote",
+          }
+        : undefined,
     });
 
     return new Response(pdfBytes as unknown as BodyInit, {
@@ -105,12 +113,20 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
         },
         service: {
           name: inv.service || "Digital Marketing Service / Google and Meta Ads",
-          description: "Digital Marketing Service / Google and Meta Ads",
+          description: inv.serviceDescription || inv.notes || "Digital Marketing Service / Google and Meta Ads",
         },
         subtotal: inv.subtotal,
         taxAmount: inv.taxAmount,
         totalAmount: inv.totalAmount,
         currency: inv.currency,
+        paymentInstructions: inv.paymentInstructions
+          ? {
+              accountNumber: inv.paymentInstructions.accountNumber || "1322054000000346",
+              accountName: inv.paymentInstructions.accountName || "ESHWAR SP",
+              ifsc: inv.paymentInstructions.ifsc || "KVBL0001322",
+              bankName: inv.paymentInstructions.bankName || "Hosakote",
+            }
+          : undefined,
       });
 
       return new Response(pdfBytes as unknown as BodyInit, {

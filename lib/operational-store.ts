@@ -60,6 +60,14 @@ export interface OperationalInvoice {
   status: "GENERATED" | "SENT" | "OVERDUE" | "PAID";
   pdfStorageKey: string | null;
   paidAt: string | null;
+  notes?: string | null;
+  serviceDescription?: string | null;
+  paymentInstructions?: {
+    accountNumber?: string;
+    accountName?: string;
+    ifsc?: string;
+    bankName?: string;
+  } | null;
   createdAt: string;
 }
 
@@ -673,6 +681,7 @@ export class OperationalStore {
     billingPeriodStart?: string;
     billingPeriodEnd?: string;
     status?: "GENERATED" | "SENT" | "OVERDUE" | "PAID";
+    notes?: string;
     paymentInstructions?: {
       accountNumber?: string;
       accountName?: string;
@@ -765,6 +774,9 @@ export class OperationalStore {
       currency: "INR",
       status: data.status || (dueDate < today ? "OVERDUE" : "GENERATED"),
       pdfStorageKey: `invoices/${nextId}/${invoiceNumber.replace(/[^a-zA-Z0-9_-]/g, "_")}.pdf`,
+      notes: (data as any).notes || null,
+      serviceDescription: data.serviceDescription || serviceName,
+      paymentInstructions: data.paymentInstructions || null,
       paidAt: data.status === "PAID" ? new Date().toISOString() : null,
       createdAt: new Date().toISOString(),
     };
@@ -823,6 +835,13 @@ export class OperationalStore {
       dueDate?: string;
       billingPeriodStart?: string;
       billingPeriodEnd?: string;
+      notes?: string;
+      paymentInstructions?: {
+        accountNumber?: string;
+        accountName?: string;
+        ifsc?: string;
+        bankName?: string;
+      };
       status?: "GENERATED" | "SENT" | "OVERDUE" | "PAID";
     }
   ): OperationalInvoice | null {
@@ -835,6 +854,9 @@ export class OperationalStore {
     if (data.billingPeriodStart) invoice.billingPeriodStart = data.billingPeriodStart;
     if (data.billingPeriodEnd) invoice.billingPeriodEnd = data.billingPeriodEnd;
     if (data.service) invoice.service = data.service;
+    if (data.serviceDescription) invoice.serviceDescription = data.serviceDescription;
+    if (data.notes !== undefined) invoice.notes = data.notes;
+    if (data.paymentInstructions !== undefined) invoice.paymentInstructions = data.paymentInstructions;
     if (data.status) invoice.status = data.status;
 
     if (data.subtotal !== undefined) invoice.subtotal = Number(data.subtotal);

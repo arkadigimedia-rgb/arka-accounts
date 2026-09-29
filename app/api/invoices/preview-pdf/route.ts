@@ -28,18 +28,25 @@ export async function POST(request: Request) {
       },
       service: {
         name: body.service || "Digital Marketing Service / Google and Meta Ads",
-        description: body.serviceDescription || "Digital Marketing Service / Google and Meta Ads",
+        description: body.serviceDescription || body.service || "Digital Marketing Service / Google and Meta Ads",
       },
       subtotal,
       taxAmount,
       totalAmount,
       currency: "INR",
-      paymentInstructions: {
-        accountNumber: "1322054000000346",
-        accountName: "ESHWAR SP",
-        ifsc: "KVBL0001322",
-        bankName: "Hosakote",
-      },
+      paymentInstructions: body.paymentInstructions
+        ? {
+            accountNumber: body.paymentInstructions.accountNumber || "1322054000000346",
+            accountName: body.paymentInstructions.accountName || "ESHWAR SP",
+            ifsc: body.paymentInstructions.ifsc || "KVBL0001322",
+            bankName: body.paymentInstructions.bankName || body.paymentInstructions.branch || "Hosakote",
+          }
+        : {
+            accountNumber: "1322054000000346",
+            accountName: "ESHWAR SP",
+            ifsc: "KVBL0001322",
+            bankName: "Hosakote",
+          },
     });
 
     return new Response(pdfBytes as unknown as BodyInit, {
