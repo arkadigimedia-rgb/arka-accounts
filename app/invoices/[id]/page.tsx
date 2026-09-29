@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState, use } from "react";
 import Link from "next/link";
+import { useParams } from "next/navigation";
 import { ArkaShell, useAuth } from "@/components/arka-shell";
 import {
   ArrowLeft,
@@ -87,20 +88,45 @@ const rupees = (amount: number) =>
     maximumFractionDigits: 0,
   }).format(amount);
 
-export default function InvoiceDetailPage({ params }: { params: Promise<{ id: string }> }) {
+export default function InvoiceDetailPage({
+  params,
+}: {
+  params?: Promise<{ id: string }> | { id: string };
+}) {
   const { isHr } = useAuth();
-  const resolvedParams = use(params);
-  const invoiceId = resolvedParams.id;
+  const routeParams = useParams();
 
-  const [data, setData] = useState<InvoiceDetail | null>(null);
+  // Safely resolve invoiceId whether via useParams or route params Promise/object
+  let invoiceId = "";
+  if (routeParams?.id) {
+    invoiceId = Array.isArray(routeParams.id) ? routeParams.id[0] : routeParams.id;
+  } else if (params) {
+    try {
+      if (typeof (params as any)?.then === "function") {
+        const unwrapped = use(params as Promise<{ id: string }>);
+        invoiceId = unwrapped?.id || "";
+      } else {
+        invoiceId = (params as any)?.id || "";
+      }
+    } catch {
+      invoiceId = "";
+    }
+  }
+
+  const [data, setData] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (!invoiceId) return;
+    setLoading(true);
     fetch(`/api/invoices/${invoiceId}`)
-      .then((res) => {
-        if (!res.ok) throw new Error("Invoice not found.");
-        return res.json() as Promise<any>;
+      .then(async (res) => {
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(errData.error || `Invoice #${invoiceId} not found.`);
+        }
+        return res.json();
       })
       .then((resData: any) => setData(resData))
       .catch((err) => setError(err.message))
@@ -134,7 +160,46 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
     );
   }
 
-  const { invoice, client, service, schedule, payment } = data;
+  // Robust fallback handling whether API returned wrapped { invoice, client, ... } or flat object
+  const invoice = data.invoice || {
+    id: data.id || Number(invoiceId) || 0,
+    invoiceNumber: data.invoiceNumber || `INV-${invoiceId}`,
+    clientId: data.clientId || 0,
+    clientName: data.clientName || "",
+    issueDate: data.issueDate || "—",
+    dueDate: data.dueDate || "—",
+    subtotal: data.subtotal || data.totalAmount || 0,
+    taxAmount: data.taxAmount || 0,
+    totalAmount: data.totalAmount || 0,
+    currency: data.currency || "INR",
+    status: data.status || "GENERATED",
+    notes: data.notes || null,
+    paymentInstructions: data.paymentInstructions || null,
+    service: data.service || "Digital Marketing Service / Google and Meta Ads",
+  };
+
+  const client = data.client || {
+    id: invoice.clientId || 0,
+    name: data.clientName || invoice.clientName || "Valued Client",
+    companyName: data.companyName || null,
+    contactPerson: data.contactPerson || null,
+    email: data.email || null,
+    phone: data.phone || null,
+    address: data.address || "Hosakote, Bengaluru, Karnataka",
+    city: data.city || "Hosakote",
+    state: data.state || "Karnataka",
+    gstNumber: data.gstNumber || null,
+    clientCode: null,
+  };
+
+  const service = data.service || {
+    id: 1,
+    name: invoice.service || "Digital Marketing Service / Google and Meta Ads",
+    description: invoice.serviceDescription || invoice.notes || "Digital Marketing Service / Google and Meta Ads",
+  };
+
+  const schedule = data.schedule || null;
+  const payment = data.payment || null;
 
   return (
     <ArkaShell>
@@ -222,7 +287,10 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
             <div>
               <p className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">Billed To</p>
               <h3 className="text-base font-bold text-slate-900">
-                <Link href={`/clients/${client.id}`} className="hover:text-amber-600 underline decoration-slate-300">
+                <Link
+                  href={client.id ? `/clients/${client.id}` : "/clients"}
+                  className="hover:text-amber-600 underline decoration-slate-300"
+                >
                   {client.name}
                 </Link>
               </h3>
@@ -260,10 +328,10 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
                   <div className="pt-2 border-t border-slate-200 flex justify-between items-center">
                     <span className="text-slate-500">Linked Payment:</span>
                     <Link
-                      href={`/payments/${payment.id}`}
+                      href={payment.id ? `/payments/${payment.id}` : "/payments"}
                       className="font-bold text-amber-600 hover:underline flex items-center gap-1"
                     >
-                      <span>PAY-{payment.id}</span>
+                      <span>PAY-{payment.id || ""}</span>
                       <ExternalLink className="h-3 w-3" />
                     </Link>
                   </div>

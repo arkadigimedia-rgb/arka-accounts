@@ -14,39 +14,48 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
   }
 
   const id = Number((await params).id);
+  if (!id || isNaN(id)) {
+    return NextResponse.json({ error: "Invalid invoice ID" }, { status: 400 });
+  }
+
+  const formatResponse = (data: { invoice: any; client: any; payment: any }) => ({
+    invoice: data.invoice,
+    client: data.client,
+    service: {
+      id: data.invoice.id,
+      name: data.invoice.service || "Digital Marketing Service / Google and Meta Ads",
+      description: data.invoice.serviceDescription || data.invoice.notes || "Digital Marketing Service / Google and Meta Ads",
+    },
+    schedule: null,
+    payment: data.payment,
+    ...data.invoice,
+  });
 
   if (!process.env.DATABASE_URL) {
     const data = operationalStore.getInvoiceById(id);
     if (!data) return NextResponse.json({ error: "Invoice not found." }, { status: 404 });
-    return NextResponse.json({
-      ...data.invoice,
-      client: data.client,
-      payment: data.payment,
-    });
+    return NextResponse.json(formatResponse(data));
   }
 
   try {
     await requireRole("FOUNDER", "ACCOUNTS_MANAGER", "ACCOUNT_MANAGER");
     const invoice = await invoiceService.getInvoice(id);
-    if (invoice) return NextResponse.json(invoice);
+    if (invoice) {
+      return NextResponse.json({
+        ...invoice,
+        ...(invoice.invoice || {}),
+      });
+    }
 
     const data = operationalStore.getInvoiceById(id);
     if (data) {
-      return NextResponse.json({
-        ...data.invoice,
-        client: data.client,
-        payment: data.payment,
-      });
+      return NextResponse.json(formatResponse(data));
     }
     return NextResponse.json({ error: "Invoice not found." }, { status: 404 });
   } catch (error) {
     const data = operationalStore.getInvoiceById(id);
     if (data) {
-      return NextResponse.json({
-        ...data.invoice,
-        client: data.client,
-        payment: data.payment,
-      });
+      return NextResponse.json(formatResponse(data));
     }
     return NextResponse.json({ error: "Invoice not found." }, { status: 404 });
   }
