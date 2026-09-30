@@ -67,7 +67,7 @@ export async function PATCH(
 ) {
   try {
     const id = Number((await params).id);
-    const body = await request.json();
+    const body = (await request.json()) as any;
 
     const updated = operationalStore.updateInvoice(id, body);
     if (!updated) {

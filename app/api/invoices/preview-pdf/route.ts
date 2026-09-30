@@ -3,7 +3,7 @@ import { generateInvoicePdf } from "@/lib/invoice-pdf";
 
 export async function POST(request: Request) {
   try {
-    const body = await request.json();
+    const body = (await request.json()) as any;
 
     const subtotal = Number(body.subtotal ?? body.amount ?? 0);
     const taxRate = body.taxRate !== undefined ? Number(body.taxRate) : 0;

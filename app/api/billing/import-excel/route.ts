@@ -16,8 +16,8 @@ export async function POST(request: Request) {
     let rows: Array<Record<string, any>> = [];
 
     if (contentType.includes("application/json")) {
-      const body = await request.json();
-      rows = Array.isArray(body.rows) ? body.rows : [];
+      const body = (await request.json()) as any;
+      rows = Array.isArray(body?.rows) ? body.rows : [];
     } else {
       const formData = await request.formData();
       const file = formData.get("file") as File | null;

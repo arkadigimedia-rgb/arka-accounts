@@ -114,7 +114,7 @@ function InvoiceGeneratorContent() {
       try {
         const clientRes = await fetch("/api/clients");
         if (clientRes.ok) {
-          const clientData = await clientRes.json();
+          const clientData = (await clientRes.json()) as any;
           if (Array.isArray(clientData)) {
             setClients(clientData);
           }
@@ -123,7 +123,7 @@ function InvoiceGeneratorContent() {
         if (editId) {
           const invRes = await fetch(`/api/invoices/${editId}`);
           if (invRes.ok) {
-            const data = await invRes.json();
+            const data = (await invRes.json()) as any;
             setInvoiceNumber(data.invoiceNumber || "");
             setSelectedClientId(String(data.clientId || ""));
             setClientName(data.clientName || data.client?.name || "");
@@ -255,13 +255,13 @@ function InvoiceGeneratorContent() {
         });
       }
 
-      const result = await res.json();
+      const result = (await res.json()) as any;
       if (res.ok) {
         setNotice(
           `Invoice ${invoiceNumber} saved successfully with total ${rupees(totalAmount)}!`
         );
         setTimeout(() => {
-          router.push(isEditing ? `/invoices/${editId}` : `/invoices/${result.invoice?.id || ""}`);
+          router.push(isEditing ? `/invoices/${editId}` : `/invoices/${result?.invoice?.id || ""}`);
         }, 1200);
       } else {
         setError(result.error || "Failed to save invoice.");

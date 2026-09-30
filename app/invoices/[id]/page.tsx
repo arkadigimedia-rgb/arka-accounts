@@ -123,8 +123,8 @@ export default function InvoiceDetailPage({
     fetch(`/api/invoices/${invoiceId}`)
       .then(async (res) => {
         if (!res.ok) {
-          const errData = await res.json().catch(() => ({}));
-          throw new Error(errData.error || `Invoice #${invoiceId} not found.`);
+          const errData = (await res.json().catch(() => ({}))) as any;
+          throw new Error(errData?.error || `Invoice #${invoiceId} not found.`);
         }
         return res.json();
       })

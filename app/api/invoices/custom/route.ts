@@ -12,9 +12,9 @@ export async function POST(request: Request) {
       }
     }
 
-    const body = await request.json();
+    const body = (await request.json()) as any;
 
-    if (!body.clientName && !body.companyName) {
+    if (!body?.clientName && !body?.companyName) {
       return NextResponse.json({ error: "Client Name or Company Name is required." }, { status: 400 });
     }
 

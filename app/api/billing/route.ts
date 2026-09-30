@@ -154,8 +154,8 @@ export async function POST(request: Request) {
 
 export async function PATCH(request: Request) {
   try {
-    const body = await request.json();
-    const id = Number(body.id);
+    const body = (await request.json()) as any;
+    const id = Number(body?.id);
     if (!id) {
       return NextResponse.json({ error: "Schedule ID is required." }, { status: 400 });
     }

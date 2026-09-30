@@ -243,9 +243,9 @@ export default function BillingSchedulesPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ rows: excelRows }),
       });
-      const data = await res.json();
+      const data = (await res.json()) as any;
       if (res.ok) {
-        setNotice(data.message || `Successfully processed ${excelRows.length} billing rows.`);
+        setNotice(data?.message || `Successfully processed ${excelRows.length} billing rows.`);
         setShowExcelModal(false);
         setExcelFile(null);
         setExcelRows([]);
@@ -289,7 +289,7 @@ export default function BillingSchedulesPage() {
           status: editFormData.status,
         }),
       });
-      const data = await res.json();
+      const data = (await res.json()) as any;
       if (res.ok) {
         setNotice(`Schedule for ${editingSchedule.clientName} updated successfully.`);
         setEditingSchedule(null);
