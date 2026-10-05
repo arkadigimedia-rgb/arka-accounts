@@ -629,6 +629,48 @@ export class OperationalStore {
     return this.payments.find((p) => p.invoiceId === invoiceId) || null;
   }
 
+  updatePayment(
+    id: number,
+    data: {
+      expectedAmount?: number;
+      paidAmount?: number | null;
+      status?: OperationalPayment["status"];
+      dueDate?: string;
+      service?: string;
+      notes?: string | null;
+      utr?: string | null;
+    }
+  ): OperationalPayment | null {
+    const payment = this.payments.find((p) => p.id === id);
+    if (!payment) return null;
+
+    if (data.expectedAmount !== undefined) {
+      payment.expectedAmount = Number(data.expectedAmount);
+      if (payment.invoiceId) {
+        const inv = this.invoices.find((i) => i.id === payment.invoiceId);
+        if (inv) {
+          inv.totalAmount = payment.expectedAmount;
+          inv.subtotal = payment.expectedAmount;
+          inv.pdfStorageKey = null;
+        }
+      }
+      const client = this.clients.find((c) => c.id === payment.clientId);
+      if (client) {
+        client.monthlyFee = payment.expectedAmount;
+        client.updatedAt = new Date().toISOString();
+      }
+    }
+    if (data.paidAmount !== undefined) payment.paidAmount = data.paidAmount;
+    if (data.status) payment.status = data.status;
+    if (data.dueDate) payment.dueDate = data.dueDate;
+    if (data.service) payment.service = data.service;
+    if (data.notes !== undefined) payment.notes = data.notes;
+    if (data.utr !== undefined) payment.utr = data.utr;
+    payment.updatedAt = new Date().toISOString();
+
+    return payment;
+  }
+
   updatePaymentStatus(id: number, status: OperationalPayment["status"], actorId: number, note?: string) {
     const payment = this.payments.find((p) => p.id === id);
     if (!payment) throw new Error("PAYMENT_NOT_FOUND");
@@ -905,6 +947,9 @@ export class OperationalStore {
       client.updatedAt = new Date().toISOString();
     }
 
+    // Invalidate cached PDF so fresh PDF is rendered with new amount
+    invoice.pdfStorageKey = null;
+
     // Synchronize corresponding payment record
     const payment = this.payments.find((p) => p.invoiceId === id);
     if (payment) {
@@ -918,6 +963,13 @@ export class OperationalStore {
         payment.paidAt = new Date().toISOString();
       }
       payment.updatedAt = new Date().toISOString();
+    }
+
+    // Synchronize client billing schedule
+    const schedule = this.schedules.find((s) => s.clientId === invoice.clientId);
+    if (schedule && invoice.totalAmount > 0) {
+      schedule.amount = invoice.totalAmount;
+      schedule.expectedAmount = invoice.totalAmount;
     }
 
     return invoice;

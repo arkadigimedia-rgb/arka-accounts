@@ -16,6 +16,7 @@ import {
   FileText,
   Filter,
   IndianRupee,
+  Pencil,
   Plus,
   RefreshCw,
   Search,
@@ -65,6 +66,12 @@ export default function InvoicesPage() {
   // Quick Invoice Preview Modal
   const [previewInvoice, setPreviewInvoice] = useState<InvoiceItem | null>(null);
 
+  // Quick Change Amount Modal
+  const [amountModalInvoice, setAmountModalInvoice] = useState<InvoiceItem | null>(null);
+  const [newAmountInput, setNewAmountInput] = useState("");
+  const [taxMode, setTaxMode] = useState<"direct" | "add_gst" | "inclusive_gst">("direct");
+  const [updatingAmount, setUpdatingAmount] = useState(false);
+
   // Manual Generation Modal
   const [showGenerateModal, setShowGenerateModal] = useState(false);
   const [selectedScheduleId, setSelectedScheduleId] = useState<string>("");
@@ -72,6 +79,73 @@ export default function InvoicesPage() {
     new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata" }).format(new Date())
   );
   const [generating, setGenerating] = useState(false);
+
+  const openAmountModal = (inv: InvoiceItem) => {
+    setAmountModalInvoice(inv);
+    setNewAmountInput(String(inv.totalAmount || ""));
+    setTaxMode("direct");
+  };
+
+  const parsedAmt = Number(newAmountInput.replace(/[^0-9.]/g, "")) || 0;
+  const computedSubtotal =
+    taxMode === "inclusive_gst"
+      ? Math.round((parsedAmt / 1.18) * 100) / 100
+      : parsedAmt;
+  const computedTax =
+    taxMode === "add_gst"
+      ? Math.round(parsedAmt * 0.18 * 100) / 100
+      : taxMode === "inclusive_gst"
+      ? Math.round((parsedAmt - computedSubtotal) * 100) / 100
+      : 0;
+  const computedTotal =
+    taxMode === "add_gst" ? parsedAmt + computedTax : parsedAmt;
+
+  const handleSaveAmount = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!amountModalInvoice || computedTotal <= 0) {
+      alert("Please enter a valid amount greater than 0.");
+      return;
+    }
+
+    setUpdatingAmount(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/invoices/${amountModalInvoice.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          subtotal: computedSubtotal,
+          taxAmount: computedTax,
+          totalAmount: computedTotal,
+        }),
+      });
+
+      const data = (await res.json()) as any;
+      if (res.ok) {
+        setInvoices((prev) =>
+          prev.map((i) =>
+            i.id === amountModalInvoice.id ? { ...i, totalAmount: computedTotal } : i
+          )
+        );
+        if (previewInvoice && previewInvoice.id === amountModalInvoice.id) {
+          setPreviewInvoice((prev) => (prev ? { ...prev, totalAmount: computedTotal } : null));
+        }
+        setNotice(
+          `Invoice ${amountModalInvoice.invoiceNumber} amount manually updated to ${rupees(
+            computedTotal
+          )}.`
+        );
+        setAmountModalInvoice(null);
+        setTimeout(() => setNotice(null), 5000);
+      } else {
+        setError(data.error || "Failed to update invoice amount.");
+      }
+    } catch {
+      setError("Network error while updating amount.");
+    } finally {
+      setUpdatingAmount(false);
+    }
+  };
 
   const loadInvoices = async () => {
     setLoading(true);
@@ -477,7 +551,21 @@ export default function InvoicesPage() {
                       </td>
                       <td className="px-6 py-4 text-xs font-mono text-slate-600">{inv.issueDate}</td>
                       <td className="px-6 py-4 text-xs font-mono text-slate-600">{inv.dueDate}</td>
-                      <td className="px-6 py-4 font-black text-slate-900">{rupees(inv.totalAmount)}</td>
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-1.5 group">
+                          <button
+                            type="button"
+                            onClick={() => openAmountModal(inv)}
+                            className="font-black text-slate-900 hover:text-emerald-700 transition flex items-center gap-1.5 text-left"
+                            title="Click to manually change amount"
+                          >
+                            <span>{rupees(inv.totalAmount)}</span>
+                            <span className="opacity-0 group-hover:opacity-100 p-1 rounded bg-slate-100 hover:bg-emerald-100 text-slate-500 hover:text-emerald-700 transition">
+                              <Pencil className="h-3 w-3" />
+                            </span>
+                          </button>
+                        </div>
+                      </td>
                       <td className="px-6 py-4">
                         <span
                           className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold ${
@@ -491,7 +579,17 @@ export default function InvoicesPage() {
                           {inv.status}
                         </span>
                       </td>
-                      <td className="px-6 py-4 text-right space-x-2">
+                      <td className="px-6 py-4 text-right space-x-1.5 whitespace-nowrap">
+                        <button
+                          type="button"
+                          onClick={() => openAmountModal(inv)}
+                          className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-emerald-300 bg-emerald-50 hover:bg-emerald-100 text-emerald-950 text-xs font-bold transition shadow-2xs"
+                          title="Manually change this invoice amount"
+                        >
+                          <IndianRupee className="h-3.5 w-3.5 text-emerald-700" />
+                          <span>Amount</span>
+                        </button>
+
                         <button
                           type="button"
                           onClick={() => setPreviewInvoice(inv)}
@@ -634,6 +732,16 @@ export default function InvoicesPage() {
                 </div>
 
                 <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => openAmountModal(previewInvoice)}
+                    className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition shadow-xs"
+                    title="Manually change this invoice amount"
+                  >
+                    <IndianRupee className="h-4 w-4" />
+                    <span>Change Amount</span>
+                  </button>
+
                   <Link
                     href={`/invoices/generate?edit=${previewInvoice.id}`}
                     className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 text-xs font-bold transition shadow-xs"
@@ -664,7 +772,7 @@ export default function InvoicesPage() {
               {/* Modal Body: Embedded Vector PDF Frame */}
               <div className="flex-1 bg-slate-100 p-2 overflow-hidden min-h-[500px]">
                 <iframe
-                  src={`/api/invoices/${previewInvoice.id}/pdf#toolbar=1`}
+                  src={`/api/invoices/${previewInvoice.id}/pdf?amt=${previewInvoice.totalAmount}#toolbar=1`}
                   className="w-full h-full rounded-2xl border border-slate-200 bg-white"
                   title={`Preview of ${previewInvoice.invoiceNumber}`}
                 />
@@ -675,8 +783,16 @@ export default function InvoicesPage() {
                 <div className="flex items-center gap-4">
                   <span>Issue: <strong className="text-slate-900">{previewInvoice.issueDate}</strong></span>
                   <span>Due: <strong className="text-slate-900">{previewInvoice.dueDate}</strong></span>
+                  <span>Amount: <strong className="text-emerald-700 font-bold">{rupees(previewInvoice.totalAmount)}</strong></span>
                 </div>
                 <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => openAmountModal(previewInvoice)}
+                    className="px-3 py-1.5 rounded-lg bg-emerald-50 border border-emerald-300 text-emerald-900 hover:bg-emerald-100 font-bold text-xs"
+                  >
+                    Change Amount
+                  </button>
                   <Link
                     href={`/invoices/${previewInvoice.id}`}
                     className="px-3 py-1.5 rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-100 font-semibold"
@@ -698,6 +814,171 @@ export default function InvoicesPage() {
                   </a>
                 </div>
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* Manually Change Amount Modal */}
+        {amountModalInvoice && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 p-4 backdrop-blur-sm">
+            <div className="bg-white rounded-3xl max-w-lg w-full p-6 sm:p-8 shadow-2xl border border-slate-200">
+              <div className="flex items-center justify-between pb-4 border-b border-slate-100">
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 rounded-xl bg-emerald-100 text-emerald-800">
+                    <IndianRupee className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-bold text-slate-900">Change Invoice Amount</h3>
+                    <p className="text-xs text-slate-500">
+                      {amountModalInvoice.clientName} · <span className="font-mono font-bold text-slate-700">{amountModalInvoice.invoiceNumber}</span>
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setAmountModalInvoice(null)}
+                  className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+
+              <form onSubmit={handleSaveAmount} className="mt-6 space-y-5">
+                <div>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="block text-xs font-semibold text-slate-700">
+                      New Amount (₹) *
+                    </label>
+                    <span className="text-xs text-slate-500">
+                      Current: <strong className="text-slate-800">{rupees(amountModalInvoice.totalAmount)}</strong>
+                    </span>
+                  </div>
+                  <div className="relative">
+                    <span className="absolute left-3.5 top-3 text-slate-400 font-bold text-lg">₹</span>
+                    <input
+                      type="number"
+                      min="1"
+                      step="1"
+                      required
+                      autoFocus
+                      placeholder="e.g. 25000"
+                      value={newAmountInput}
+                      onChange={(e) => setNewAmountInput(e.target.value)}
+                      className="w-full pl-9 pr-4 py-3 text-2xl font-black font-mono border-2 border-slate-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:border-emerald-600 text-slate-900 bg-slate-50/50"
+                    />
+                  </div>
+                </div>
+
+                {/* Quick Presets */}
+                <div>
+                  <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-2">
+                    Quick Preset Amounts:
+                  </p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {[11000, 15000, 20000, 22000, 25000, 30000, 35000, 50000].map((preset) => (
+                      <button
+                        key={preset}
+                        type="button"
+                        onClick={() => setNewAmountInput(String(preset))}
+                        className={`px-2.5 py-1 rounded-lg text-xs font-semibold font-mono transition border ${
+                          Number(newAmountInput) === preset
+                            ? "bg-slate-950 text-white border-slate-950"
+                            : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100"
+                        }`}
+                      >
+                        ₹{preset.toLocaleString("en-IN")}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Tax Option */}
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                    GST / Tax Calculation
+                  </label>
+                  <div className="grid grid-cols-3 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setTaxMode("direct")}
+                      className={`p-2 rounded-xl border text-xs font-semibold transition text-center ${
+                        taxMode === "direct"
+                          ? "bg-emerald-50 border-emerald-500 text-emerald-900 ring-1 ring-emerald-500"
+                          : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
+                      }`}
+                    >
+                      <span>Direct Total</span>
+                      <span className="block text-[10px] text-slate-400 font-normal">No GST Added</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setTaxMode("add_gst")}
+                      className={`p-2 rounded-xl border text-xs font-semibold transition text-center ${
+                        taxMode === "add_gst"
+                          ? "bg-emerald-50 border-emerald-500 text-emerald-900 ring-1 ring-emerald-500"
+                          : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
+                      }`}
+                    >
+                      <span>+ 18% GST</span>
+                      <span className="block text-[10px] text-slate-400 font-normal">Add Tax to Base</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setTaxMode("inclusive_gst")}
+                      className={`p-2 rounded-xl border text-xs font-semibold transition text-center ${
+                        taxMode === "inclusive_gst"
+                          ? "bg-emerald-50 border-emerald-500 text-emerald-900 ring-1 ring-emerald-500"
+                          : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
+                      }`}
+                    >
+                      <span>GST Inclusive</span>
+                      <span className="block text-[10px] text-slate-400 font-normal">Extract 18% Tax</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Calculation Preview Box */}
+                <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-1.5 text-xs">
+                  <div className="flex justify-between text-slate-600">
+                    <span>Taxable Base:</span>
+                    <span className="font-mono font-semibold">{rupees(computedSubtotal)}</span>
+                  </div>
+                  {taxMode !== "direct" && (
+                    <div className="flex justify-between text-slate-600">
+                      <span>GST (18%):</span>
+                      <span className="font-mono font-semibold">{rupees(computedTax)}</span>
+                    </div>
+                  )}
+                  <div className="pt-2 border-t border-slate-200 flex justify-between items-center text-sm font-bold text-slate-900">
+                    <span>New Invoice Total:</span>
+                    <span className="font-mono text-base text-emerald-700">{rupees(computedTotal)}</span>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-end gap-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setAmountModalInvoice(null)}
+                    className="px-4 py-2.5 rounded-xl border border-slate-200 text-slate-700 text-sm font-semibold hover:bg-slate-50 transition"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={updatingAmount || computedTotal <= 0}
+                    className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-bold shadow-md transition disabled:opacity-50 flex items-center gap-2"
+                  >
+                    {updatingAmount ? (
+                      <span>Updating...</span>
+                    ) : (
+                      <>
+                        <CheckCircle className="h-4 w-4" />
+                        <span>Save Amount ({rupees(computedTotal)})</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </form>
             </div>
           </div>
         )}

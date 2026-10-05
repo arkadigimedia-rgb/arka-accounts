@@ -14,10 +14,12 @@ import {
   Eye,
   Filter,
   IndianRupee,
+  Pencil,
   Search,
   ShieldAlert,
   ShieldCheck,
   UploadCloud,
+  X,
 } from "lucide-react";
 
 interface PaymentItem {
@@ -56,6 +58,56 @@ export default function PaymentsPage() {
   const [statusFilter, setStatusFilter] = useState("ALL");
   const [monthFilter, setMonthFilter] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+
+  // Quick Edit Amount Modal
+  const [amountModalPayment, setAmountModalPayment] = useState<PaymentItem | null>(null);
+  const [newAmountInput, setNewAmountInput] = useState("");
+  const [updatingAmount, setUpdatingAmount] = useState(false);
+
+  const openAmountModal = (p: PaymentItem) => {
+    setAmountModalPayment(p);
+    setNewAmountInput(String(p.expectedAmount || ""));
+  };
+
+  const handleSaveAmount = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const val = Number(newAmountInput.replace(/[^0-9.]/g, "")) || 0;
+    if (!amountModalPayment || val <= 0) {
+      alert("Please enter a valid amount greater than 0.");
+      return;
+    }
+
+    setUpdatingAmount(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/payments/${amountModalPayment.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ expectedAmount: val }),
+      });
+
+      const data = (await res.json()) as any;
+      if (res.ok) {
+        setPayments((prev) =>
+          prev.map((p) =>
+            p.id === amountModalPayment.id ? { ...p, expectedAmount: val } : p
+          )
+        );
+        setNotice(
+          `Payment for ${amountModalPayment.client} updated to ${rupees(val)}.`
+        );
+        setAmountModalPayment(null);
+        setTimeout(() => setNotice(null), 5000);
+      } else {
+        setError(data.error || "Failed to update payment amount.");
+      }
+    } catch {
+      setError("Network error while updating amount.");
+    } finally {
+      setUpdatingAmount(false);
+    }
+  };
 
   const loadPayments = async () => {
     setLoading(true);
@@ -159,6 +211,13 @@ export default function PaymentsPage() {
             </Link>
           </div>
         </div>
+
+        {notice && (
+          <div className="flex items-center gap-2.5 p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-900 text-sm font-semibold">
+            <CheckCircle className="h-4 w-4 text-emerald-600 shrink-0" />
+            <span>{notice}</span>
+          </div>
+        )}
 
         {error && (
           <div className="p-4 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-sm font-medium">
@@ -384,7 +443,21 @@ export default function PaymentsPage() {
                           <p className="text-xs text-slate-500">{p.service}</p>
                         </td>
                         <td className="px-6 py-4 text-xs font-mono text-slate-600">{p.dueDate}</td>
-                        <td className="px-6 py-4 font-black text-slate-900">{rupees(p.expectedAmount)}</td>
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-1.5 group">
+                            <button
+                              type="button"
+                              onClick={() => openAmountModal(p)}
+                              className="font-black text-slate-900 hover:text-emerald-700 transition flex items-center gap-1.5 text-left"
+                              title="Click to manually change expected amount"
+                            >
+                              <span>{rupees(p.expectedAmount)}</span>
+                              <span className="opacity-0 group-hover:opacity-100 p-1 rounded bg-slate-100 hover:bg-emerald-100 text-slate-500 hover:text-emerald-700 transition">
+                                <Pencil className="h-3 w-3" />
+                              </span>
+                            </button>
+                          </div>
+                        </td>
                         <td className="px-6 py-4 font-semibold text-slate-700">
                           {p.paidAmount ? rupees(p.paidAmount) : "—"}
                         </td>
@@ -412,7 +485,17 @@ export default function PaymentsPage() {
                             "—"
                           )}
                         </td>
-                        <td className="px-6 py-4 text-right space-x-2">
+                        <td className="px-6 py-4 text-right space-x-1.5 whitespace-nowrap">
+                          <button
+                            type="button"
+                            onClick={() => openAmountModal(p)}
+                            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-emerald-300 bg-emerald-50 hover:bg-emerald-100 text-emerald-950 text-xs font-bold transition shadow-2xs"
+                            title="Manually change payment expected amount"
+                          >
+                            <IndianRupee className="h-3.5 w-3.5 text-emerald-700" />
+                            <span>Amount</span>
+                          </button>
+
                           <Link
                             href={`/payments/${p.id}`}
                             className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-100 text-slate-700 text-xs font-semibold transition"
@@ -439,6 +522,108 @@ export default function PaymentsPage() {
             </div>
           )}
         </div>
+
+        {/* Change Payment Amount Modal */}
+        {amountModalPayment && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 p-4 backdrop-blur-sm">
+            <div className="bg-white rounded-3xl max-w-md w-full p-6 sm:p-8 shadow-2xl border border-slate-200">
+              <div className="flex items-center justify-between pb-4 border-b border-slate-100">
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 rounded-xl bg-emerald-100 text-emerald-800">
+                    <IndianRupee className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-bold text-slate-900">Change Payment Amount</h3>
+                    <p className="text-xs text-slate-500">
+                      {amountModalPayment.client} · PAY-{amountModalPayment.id}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setAmountModalPayment(null)}
+                  className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+
+              <form onSubmit={handleSaveAmount} className="mt-6 space-y-5">
+                <div>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="block text-xs font-semibold text-slate-700">
+                      New Expected Amount (₹) *
+                    </label>
+                    <span className="text-xs text-slate-500">
+                      Current: <strong className="text-slate-800">{rupees(amountModalPayment.expectedAmount)}</strong>
+                    </span>
+                  </div>
+                  <div className="relative">
+                    <span className="absolute left-3.5 top-3 text-slate-400 font-bold text-lg">₹</span>
+                    <input
+                      type="number"
+                      min="1"
+                      step="1"
+                      required
+                      autoFocus
+                      placeholder="e.g. 25000"
+                      value={newAmountInput}
+                      onChange={(e) => setNewAmountInput(e.target.value)}
+                      className="w-full pl-9 pr-4 py-3 text-2xl font-black font-mono border-2 border-slate-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:border-emerald-600 text-slate-900 bg-slate-50/50"
+                    />
+                  </div>
+                </div>
+
+                {/* Quick Presets */}
+                <div>
+                  <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-2">
+                    Quick Preset Amounts:
+                  </p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {[11000, 15000, 20000, 22000, 25000, 30000, 35000, 50000].map((preset) => (
+                      <button
+                        key={preset}
+                        type="button"
+                        onClick={() => setNewAmountInput(String(preset))}
+                        className={`px-2.5 py-1 rounded-lg text-xs font-semibold font-mono transition border ${
+                          Number(newAmountInput) === preset
+                            ? "bg-slate-950 text-white border-slate-950"
+                            : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100"
+                        }`}
+                      >
+                        ₹{preset.toLocaleString("en-IN")}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-end gap-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setAmountModalPayment(null)}
+                    className="px-4 py-2.5 rounded-xl border border-slate-200 text-slate-700 text-sm font-semibold hover:bg-slate-50 transition"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={updatingAmount || Number(newAmountInput) <= 0}
+                    className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-bold shadow-md transition disabled:opacity-50 flex items-center gap-2"
+                  >
+                    {updatingAmount ? (
+                      <span>Updating...</span>
+                    ) : (
+                      <>
+                        <CheckCircle className="h-4 w-4" />
+                        <span>Save Amount</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
       </div>
     </ArkaShell>
   );

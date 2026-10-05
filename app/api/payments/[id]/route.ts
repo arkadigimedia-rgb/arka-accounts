@@ -150,3 +150,61 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
     );
   }
 }
+
+export async function PATCH(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    await requireRole("FOUNDER", "ACCOUNTS_MANAGER", "ACCOUNT_MANAGER");
+    const id = Number((await params).id);
+    if (!Number.isInteger(id) || id < 1) {
+      return NextResponse.json({ error: "Invalid payment id." }, { status: 400 });
+    }
+
+    const body = (await request.json()) as any;
+
+    const updated = operationalStore.updatePayment(id, {
+      expectedAmount: body.expectedAmount !== undefined ? Number(body.expectedAmount) : undefined,
+      paidAmount: body.paidAmount !== undefined ? (body.paidAmount !== null ? Number(body.paidAmount) : null) : undefined,
+      status: body.status,
+      dueDate: body.dueDate,
+      service: body.service,
+      notes: body.notes,
+      utr: body.utr,
+    });
+
+    if (process.env.DATABASE_URL) {
+      try {
+        const db = getDb();
+        const updateFields: any = { updatedAt: new Date().toISOString() };
+        if (body.expectedAmount !== undefined) updateFields.expectedAmount = Number(body.expectedAmount);
+        if (body.paidAmount !== undefined) updateFields.paidAmount = body.paidAmount !== null ? Number(body.paidAmount) : null;
+        if (body.status) updateFields.status = body.status;
+        if (body.dueDate) updateFields.dueDate = body.dueDate;
+        if (body.notes !== undefined) updateFields.notes = body.notes;
+        if (body.utr !== undefined) updateFields.utr = body.utr;
+
+        await db.update(payments).set(updateFields).where(eq(payments.id, id));
+      } catch (dbErr) {
+        console.error("Database payment update error:", dbErr);
+      }
+    }
+
+    if (!updated) {
+      return NextResponse.json({ error: "Payment not found." }, { status: 404 });
+    }
+
+    return NextResponse.json({ success: true, payment: updated });
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : "Failed to update payment";
+    return NextResponse.json({ error: msg }, { status: 500 });
+  }
+}
+
+export async function PUT(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  return PATCH(request, { params });
+}
