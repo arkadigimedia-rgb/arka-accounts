@@ -256,11 +256,24 @@ export class OperationalStore {
         normalizedKeys["contact"] ||
         normalizedKeys["phone"] ||
         normalizedKeys["mobilenumber"] ||
+        normalizedKeys["phonenumber"] ||
+        normalizedKeys["contactnumber"] ||
+        "";
+      const contactPerson =
+        normalizedKeys["contactperson"] ||
+        normalizedKeys["contactname"] ||
+        normalizedKeys["primarycontact"] ||
+        normalizedKeys["person"] ||
         "";
       const email =
         normalizedKeys["email"] ||
         normalizedKeys["clientemail"] ||
-        `accounts@${clientName.toLowerCase().replace(/[^a-z0-9]/g, "")}.com`;
+        "";
+      const gstNumber =
+        normalizedKeys["gstnumber"] ||
+        normalizedKeys["gstin"] ||
+        normalizedKeys["gst"] ||
+        "";
       const billingCycle = normalizedKeys["billingcycle"] || normalizedKeys["frequency"] || "Monthly";
       const invoiceDateRaw = normalizedKeys["invoicedate"] || normalizedKeys["date"] || "";
       const dueDateRaw = normalizedKeys["invoiceduedate"] || normalizedKeys["duedate"] || "";
@@ -333,13 +346,13 @@ export class OperationalStore {
           clientCode: invoiceNo.includes("/") ? invoiceNo : `CLI-${String(newClientId).padStart(3, "0")}`,
           name: clientName,
           companyName: clientName,
-          contactPerson: "Accounts Lead",
-          email: email,
-          phone: contact,
+          contactPerson: contactPerson || "",
+          email: email || "",
+          phone: contact || "",
           address: "Hosakote, Bengaluru, Karnataka",
           city: "Hosakote",
           state: "Karnataka",
-          gstNumber: `29AAACN${String(1000 + newClientId)}A1Z0`,
+          gstNumber: gstNumber || "",
           service: "Digital Marketing Service / Google and Meta Ads",
           serviceDescription: "Digital Marketing Service / Google and Meta Ads",
           monthlyFee: amount,
@@ -376,6 +389,12 @@ export class OperationalStore {
         if (amount > 0) client.monthlyFee = amount;
         if (contact) client.phone = contact;
         if (email) client.email = email;
+        if (contactPerson) client.contactPerson = contactPerson;
+        if (gstNumber) client.gstNumber = gstNumber;
+        // Clear historical synthetic defaults if present
+        if (client.contactPerson === "Accounts Lead" && !contactPerson) client.contactPerson = "";
+        if (client.gstNumber && client.gstNumber.startsWith("29AAACN") && !gstNumber) client.gstNumber = "";
+        if (client.email && client.email.startsWith("accounts@") && client.email.endsWith(".com") && !email) client.email = "";
         client.updatedAt = new Date().toISOString();
         updated++;
       }
@@ -973,7 +992,27 @@ export class OperationalStore {
       const amount = Number(rawAmount) || 0;
       const rawDueDate = normalizedKeys["invoiceduedate"] || normalizedKeys["duedate"] || "";
       const rawInvDate = normalizedKeys["invoicedate"] || normalizedKeys["date"] || "";
-      const phone = normalizedKeys["phone"] || normalizedKeys["contact"] || "";
+      const phone =
+        normalizedKeys["phone"] ||
+        normalizedKeys["contact"] ||
+        normalizedKeys["mobilenumber"] ||
+        normalizedKeys["phonenumber"] ||
+        "";
+      const contactPerson =
+        normalizedKeys["contactperson"] ||
+        normalizedKeys["contactname"] ||
+        normalizedKeys["primarycontact"] ||
+        normalizedKeys["person"] ||
+        "";
+      const email =
+        normalizedKeys["email"] ||
+        normalizedKeys["clientemail"] ||
+        "";
+      const gstNumber =
+        normalizedKeys["gstnumber"] ||
+        normalizedKeys["gstin"] ||
+        normalizedKeys["gst"] ||
+        "";
       const service = normalizedKeys["service"] || normalizedKeys["productservice"] || "Digital Marketing Service / Google and Meta Ads";
 
       let client = this.clients.find(
@@ -987,13 +1026,13 @@ export class OperationalStore {
           clientCode: `CLI-${newId}`,
           name: clientName,
           companyName: clientName,
-          contactPerson: "",
-          email: "",
-          phone,
+          contactPerson: contactPerson || "",
+          email: email || "",
+          phone: phone || "",
           address: "Hosakote, Bengaluru, Karnataka",
           city: "Hosakote",
           state: "Karnataka",
-          gstNumber: "",
+          gstNumber: gstNumber || "",
           service,
           serviceDescription: service,
           monthlyFee: amount,
@@ -1009,6 +1048,11 @@ export class OperationalStore {
         if (amount > 0) client.monthlyFee = amount;
         if (service) client.service = service;
         if (phone) client.phone = phone;
+        if (contactPerson) client.contactPerson = contactPerson;
+        if (email) client.email = email;
+        if (gstNumber) client.gstNumber = gstNumber;
+        if (client.contactPerson === "Accounts Lead" && !contactPerson) client.contactPerson = "";
+        if (client.gstNumber && client.gstNumber.startsWith("29AAACN") && !gstNumber) client.gstNumber = "";
         client.updatedAt = new Date().toISOString();
         updated++;
       }
@@ -1072,7 +1116,7 @@ export class OperationalStore {
         const client = this.clients.find((c) => c.id === p.clientId);
         return {
           ...p,
-          clientGstin: client?.gstNumber || "29AAACN1234A1Z5",
+          clientGstin: client?.gstNumber || "",
           clientEmail: client?.email || "",
           clientPhone: client?.phone || "",
         };

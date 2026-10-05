@@ -440,11 +440,11 @@ function InvoiceGeneratorContent() {
                   </div>
                   <div>
                     <label className="block text-xs font-semibold text-slate-700 mb-1">
-                      Contact Person
+                      Contact Person (Optional)
                     </label>
                     <input
                       type="text"
-                      placeholder="e.g. Rahul Sharma"
+                      placeholder="e.g. Rahul Sharma (optional)"
                       value={contactPerson}
                       onChange={(e) => setContactPerson(e.target.value)}
                       className="w-full px-3.5 py-2 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-950"
@@ -455,11 +455,11 @@ function InvoiceGeneratorContent() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label className="block text-xs font-semibold text-slate-700 mb-1">
-                      Contact Phone
+                      Contact Phone (Optional)
                     </label>
                     <input
                       type="text"
-                      placeholder="+91 98765 43210"
+                      placeholder="+91 98765 43210 (optional)"
                       value={phone}
                       onChange={(e) => setPhone(e.target.value)}
                       className="w-full px-3.5 py-2 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-950"

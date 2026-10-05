@@ -192,7 +192,10 @@ export default function ClientsPage() {
           <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-sm">
             <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Corporate / GST Registered</p>
             <p className="mt-2 text-2xl lg:text-3xl font-black text-slate-900">
-              {clients.filter((c) => Boolean(c.gstNumber)).length}
+              {clients.filter((c) => Boolean(c.gstNumber && c.gstNumber.trim())).length}
+            </p>
+            <p className="mt-1 text-xs text-slate-500">
+              {clients.filter((c) => Boolean(c.gstNumber && c.gstNumber.trim())).length} of {clients.length} registered
             </p>
           </div>
           <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-sm">
@@ -200,10 +203,28 @@ export default function ClientsPage() {
             <p className="mt-2 text-2xl lg:text-3xl font-black text-amber-600">
               {clients.length > 0
                 ? Math.round(
-                    (clients.filter((c) => Boolean(c.email || c.phone)).length / clients.length) * 100
+                    (clients.filter((c) =>
+                      Boolean(
+                        (c.email && c.email.trim()) ||
+                        (c.phone && c.phone.trim()) ||
+                        (c.contactPerson && c.contactPerson.trim())
+                      )
+                    ).length / clients.length) * 100
                   )
                 : 0}
               %
+            </p>
+            <p className="mt-1 text-xs text-slate-500">
+              {
+                clients.filter((c) =>
+                  Boolean(
+                    (c.email && c.email.trim()) ||
+                    (c.phone && c.phone.trim()) ||
+                    (c.contactPerson && c.contactPerson.trim())
+                  )
+                ).length
+              }{" "}
+              of {clients.length} with details
             </p>
           </div>
         </div>
@@ -277,9 +298,9 @@ export default function ClientsPage() {
                 <thead className="bg-slate-50 text-[11px] font-bold uppercase tracking-wider text-slate-500 border-b border-slate-200">
                   <tr>
                     <th className="px-6 py-3.5">Client & Code</th>
-                    <th className="px-6 py-3.5">Primary Contact</th>
+                    <th className="px-6 py-3.5">Contact (Optional)</th>
                     <th className="px-6 py-3.5">Location</th>
-                    <th className="px-6 py-3.5">Tax / GST</th>
+                    <th className="px-6 py-3.5">GSTIN (Optional)</th>
                     <th className="px-6 py-3.5">Status</th>
                     <th className="px-6 py-3.5 text-right">Actions</th>
                   </tr>
@@ -304,29 +325,32 @@ export default function ClientsPage() {
                           </span>
                         )}
                       </td>
-                      <td className="px-6 py-4 space-y-1">
-                        {client.contactPerson && (
-                          <div className="flex items-center gap-1.5 text-slate-800 text-xs font-medium">
-                            <User className="h-3 w-3 text-slate-400" />
-                            <span>{client.contactPerson}</span>
+                      <td className="px-6 py-4">
+                        {Boolean(client.contactPerson || client.email || client.phone) ? (
+                          <div className="space-y-1">
+                            {client.contactPerson && (
+                              <div className="flex items-center gap-1.5 text-slate-800 text-xs font-medium">
+                                <User className="h-3 w-3 text-slate-400" />
+                                <span>{client.contactPerson}</span>
+                              </div>
+                            )}
+                            {client.email && (
+                              <div className="flex items-center gap-1.5 text-slate-600 text-xs">
+                                <Mail className="h-3 w-3 text-slate-400" />
+                                <a href={`mailto:${client.email}`} className="hover:underline">
+                                  {client.email}
+                                </a>
+                              </div>
+                            )}
+                            {client.phone && (
+                              <div className="flex items-center gap-1.5 text-slate-600 text-xs">
+                                <Phone className="h-3 w-3 text-slate-400" />
+                                <span>{client.phone}</span>
+                              </div>
+                            )}
                           </div>
-                        )}
-                        {client.email && (
-                          <div className="flex items-center gap-1.5 text-slate-600 text-xs">
-                            <Mail className="h-3 w-3 text-slate-400" />
-                            <a href={`mailto:${client.email}`} className="hover:underline">
-                              {client.email}
-                            </a>
-                          </div>
-                        )}
-                        {client.phone && (
-                          <div className="flex items-center gap-1.5 text-slate-600 text-xs">
-                            <Phone className="h-3 w-3 text-slate-400" />
-                            <span>{client.phone}</span>
-                          </div>
-                        )}
-                        {!client.contactPerson && !client.email && !client.phone && (
-                          <span className="text-xs text-slate-400 italic">No contact details</span>
+                        ) : (
+                          <span className="text-slate-400 font-sans text-xs">—</span>
                         )}
                       </td>
                       <td className="px-6 py-4 text-xs text-slate-600">
@@ -335,16 +359,16 @@ export default function ClientsPage() {
                             {[client.city, client.state].filter(Boolean).join(", ")}
                           </span>
                         ) : (
-                          <span className="text-slate-400 italic">Not specified</span>
+                          <span className="text-slate-400 font-sans text-xs">—</span>
                         )}
                       </td>
                       <td className="px-6 py-4 text-xs font-mono">
-                        {client.gstNumber ? (
+                        {client.gstNumber && client.gstNumber.trim() ? (
                           <span className="px-2 py-1 rounded bg-slate-100 text-slate-800 font-medium">
                             {client.gstNumber}
                           </span>
                         ) : (
-                          <span className="text-slate-400 italic font-sans text-xs">Unregistered</span>
+                          <span className="text-slate-400 font-sans text-xs">—</span>
                         )}
                       </td>
                       <td className="px-6 py-4">
@@ -440,11 +464,11 @@ export default function ClientsPage() {
                   </div>
                   <div>
                     <label className="block text-xs font-semibold text-slate-700 mb-1">
-                      Contact Person
+                      Contact Person (Optional)
                     </label>
                     <input
                       type="text"
-                      placeholder="e.g. Rahul Sharma"
+                      placeholder="e.g. Rahul Sharma (optional)"
                       value={formData.contactPerson}
                       onChange={(e) => setFormData({ ...formData, contactPerson: e.target.value })}
                       className="w-full px-3.5 py-2 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-950"
@@ -455,11 +479,11 @@ export default function ClientsPage() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-xs font-semibold text-slate-700 mb-1">
-                      Email Address
+                      Email Address (Optional)
                     </label>
                     <input
                       type="email"
-                      placeholder="accounts@acme.com"
+                      placeholder="e.g. client@example.com (optional)"
                       value={formData.email}
                       onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                       className="w-full px-3.5 py-2 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-950"
@@ -467,11 +491,11 @@ export default function ClientsPage() {
                   </div>
                   <div>
                     <label className="block text-xs font-semibold text-slate-700 mb-1">
-                      Phone Number
+                      Phone Number (Optional)
                     </label>
                     <input
                       type="tel"
-                      placeholder="+91 98765 43210"
+                      placeholder="e.g. +91 98765 43210 (optional)"
                       value={formData.phone}
                       onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                       className="w-full px-3.5 py-2 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-950"
@@ -482,11 +506,11 @@ export default function ClientsPage() {
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <div>
                     <label className="block text-xs font-semibold text-slate-700 mb-1">
-                      GST Number
+                      GSTIN (Optional)
                     </label>
                     <input
                       type="text"
-                      placeholder="27AAAAA0000A1Z5"
+                      placeholder="Optional GSTIN"
                       value={formData.gstNumber}
                       onChange={(e) => setFormData({ ...formData, gstNumber: e.target.value })}
                       className="w-full px-3.5 py-2 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-950 uppercase"

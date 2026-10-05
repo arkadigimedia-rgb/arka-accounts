@@ -866,18 +866,20 @@ export default function ClientDetailsPage({ params }: { params: Promise<{ id: st
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-xs font-semibold text-slate-700 mb-1">Contact Person</label>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">Contact Person (Optional)</label>
                     <input
                       type="text"
+                      placeholder="Optional"
                       value={editFormData.contactPerson}
                       onChange={(e) => setEditFormData({ ...editFormData, contactPerson: e.target.value })}
                       className="w-full px-3.5 py-2 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-950"
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-semibold text-slate-700 mb-1">Email</label>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">Email (Optional)</label>
                     <input
                       type="email"
+                      placeholder="Optional"
                       value={editFormData.email}
                       onChange={(e) => setEditFormData({ ...editFormData, email: e.target.value })}
                       className="w-full px-3.5 py-2 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-950"
@@ -887,18 +889,20 @@ export default function ClientDetailsPage({ params }: { params: Promise<{ id: st
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-xs font-semibold text-slate-700 mb-1">Phone</label>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">Phone (Optional)</label>
                     <input
                       type="text"
+                      placeholder="Optional"
                       value={editFormData.phone}
                       onChange={(e) => setEditFormData({ ...editFormData, phone: e.target.value })}
                       className="w-full px-3.5 py-2 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-950"
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-semibold text-slate-700 mb-1">GST Number</label>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">GSTIN (Optional)</label>
                     <input
                       type="text"
+                      placeholder="Optional"
                       value={editFormData.gstNumber}
                       onChange={(e) => setEditFormData({ ...editFormData, gstNumber: e.target.value })}
                       className="w-full px-3.5 py-2 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-950 uppercase"
